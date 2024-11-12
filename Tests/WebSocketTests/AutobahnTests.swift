@@ -22,13 +22,6 @@ import XCTest
 
 final class AutobahnTests: XCTestCase {
     var isCI: Bool { true } // ProcessInfo.processInfo.environment["CI"] != nil }
-    var reportDirectory: URL {
-        URL(filePath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .appending(path: ".build/reports")
-    }
 
     func getValue<T: Decodable & Sendable>(_ path: String, as: T.Type) async throws -> T {
         let result: NIOLockedValueBox<T?> = .init(nil)
