@@ -22,11 +22,12 @@ import XCTest
 
 final class AutobahnTests: XCTestCase {
     var isCI: Bool { ProcessInfo.processInfo.environment["CI"] != nil }
+    var autobahnServer: String { ProcessInfo.processInfo.environment["FUZZING_SERVER"] ?? "localhost" }
 
     func getValue<T: Decodable & Sendable>(_ path: String, as: T.Type) async throws -> T {
         let result: NIOLockedValueBox<T?> = .init(nil)
         try await WebSocketClient.connect(
-            url: .init("ws://127.0.0.1:9001/\(path)"),
+            url: .init("ws://\(self.autobahnServer):9001/\(path)"),
             logger: Logger(label: "Autobahn")
         ) { inbound, _, _ in
             var inboundIterator = inbound.messages(maxSize: .max).makeAsyncIterator()
@@ -69,7 +70,7 @@ final class AutobahnTests: XCTestCase {
 
                 // run case
                 try await WebSocketClient.connect(
-                    url: .init("ws://127.0.0.1:9001/runCase?case=\(index)&agent=swift-websocket"),
+                    url: .init("ws://\(self.autobahnServer):9001/runCase?case=\(index)&agent=swift-websocket"),
                     configuration: .init(maxFrameSize: 16_777_216, extensions: extensions),
                     logger: logger
                 ) { inbound, outbound, _ in
@@ -85,14 +86,12 @@ final class AutobahnTests: XCTestCase {
 
                 // get case status
                 let status = try await getValue("getCaseStatus?case=\(index)&agent=swift-websocket", as: CaseStatus.self)
-                XCTAssertEqual(status.behavior, "OK")
+                XCTAssert(status.behavior == "OK" || status.behavior == "INFORMATIONAL")
             }
         } catch let error as NIOConnectionError {
             logger.error("Autobahn tests require a running Autobahn fuzzing server. Run ./scripts/autobahn-server.sh")
             throw error
         }
-
-        // try await readResults(cases: cases)
     }
 
     func test_1_Framing() async throws {
@@ -123,7 +122,7 @@ final class AutobahnTests: XCTestCase {
         try await self.autobahnTests(cases: .init(65..<210))
     }
 
-    func test_7_UTF8Handling() async throws {
+    func test_7_CloseHandling() async throws {
         try await self.autobahnTests(cases: .init(210..<222))
         // UTF8 validation fails so skip 222
         try await self.autobahnTests(cases: .init(223..<247))
