@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches:
+    - main
+    paths:
+    - '**.swift'
+    - '**.yml'
+  pull_request:
+  workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-ci
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        image: ["swift:5.10", "swift:6.0"]
+        
+    
+    container:
+      image: ${{ matrix.image }}
+    services:
+      autobahn:
+        image: crossbario/autobahn-testsuite
+        options: --name fuzzingserver
+        ports: 
+          - 9001:9001
+        volumes:
+          - ${{ github.workspace }}/scripts/autobahn-config:/config
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Test
+      run: |
+        swift test --enable-code-coverage
+    - name: Convert coverage files
+      run: |
+        llvm-cov export -format="lcov" \
+          .build/debug/swift-websocketPackageTests.xctest \
+          -ignore-filename-regex="\/Tests\/" \
+          -ignore-filename-regex="\/Benchmarks\/" \
+          -instr-profile .build/debug/codecov/default.profdata > info.lcov
+    - name: Upload to codecov.io
+      uses: codecov/codecov-action@v4
+      with:
+        file: info.lcov
