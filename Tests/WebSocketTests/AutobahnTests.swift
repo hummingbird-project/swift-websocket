@@ -21,7 +21,7 @@ import WSCompression
 import XCTest
 
 final class AutobahnTests: XCTestCase {
-    var isCI: Bool { true } // ProcessInfo.processInfo.environment["CI"] != nil }
+    var isCI: Bool { ProcessInfo.processInfo.environment["CI"] != nil }
 
     func getValue<T: Decodable & Sendable>(_ path: String, as: T.Type) async throws -> T {
         let result: NIOLockedValueBox<T?> = .init(nil)
