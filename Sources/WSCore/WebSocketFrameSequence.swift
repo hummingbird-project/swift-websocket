@@ -46,8 +46,8 @@ struct WebSocketFrameSequence {
         }
     }
 
-    var message: WebSocketMessage {
-        .init(frame: self.collated)!
+    var message: WebSocketMessage? {
+        .init(frame: self.collated)
     }
 
     var collated: WebSocketDataFrame {

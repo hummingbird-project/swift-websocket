@@ -108,7 +108,11 @@ public final class WebSocketInboundStream: AsyncSequence, Sendable {
             case .text, .binary:
                 frameSequence = .init(frame: frame)
                 if frame.fin {
-                    return frameSequence.message
+                    guard let message = frameSequence.message else {
+                        try await self.handler.close(code: .dataInconsistentWithMessage)
+                        return nil
+                    }
+                    return message
                 }
             default:
                 try await self.handler.close(code: .protocolError)
@@ -126,7 +130,11 @@ public final class WebSocketInboundStream: AsyncSequence, Sendable {
                 }
                 frameSequence.append(frame)
                 if frame.fin {
-                    return frameSequence.message
+                    guard let message = frameSequence.message else {
+                        try await self.handler.close(code: .dataInconsistentWithMessage)
+                        return nil
+                    }
+                    return message
                 }
             }
             return nil

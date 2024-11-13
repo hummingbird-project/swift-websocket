@@ -90,6 +90,10 @@ final class AutobahnTests: XCTestCase {
                 let status = try await getValue("getCaseStatus?case=\(index)&agent=swift-websocket", as: CaseStatus.self)
                 XCTAssert(status.behavior == "OK" || status.behavior == "INFORMATIONAL")
             }
+
+            try await WebSocketClient.connect(url: .init("ws://\(self.autobahnServer):9001/updateReports?agent=HB"), logger: logger) { inbound, _, _ in
+                for try await _ in inbound {}
+            }
         } catch let error as NIOConnectionError {
             logger.error("Autobahn tests require a running Autobahn fuzzing server. Run ./scripts/autobahn-server.sh")
             throw error
@@ -120,7 +124,8 @@ final class AutobahnTests: XCTestCase {
 
     func test_6_UTF8Handling() async throws {
         // UTF8 validation fails
-        try XCTSkipIf(true)
+        // try XCTSkipIf(true)
+        // try await self.autobahnTests(cases: .init([72]))
         try await self.autobahnTests(cases: .init(65..<210))
     }
 
