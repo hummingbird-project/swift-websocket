@@ -21,7 +21,9 @@ import WSCompression
 import XCTest
 
 final class AutobahnTests: XCTestCase {
-    var isCI: Bool { ProcessInfo.processInfo.environment["CI"] != nil }
+    /// To run all the autobahn tests takes a long time. By default we only run a selection.
+    /// The `AUTOBAHN_ALL_TESTS` environment flag triggers running all of them.
+    var runAllTests: Bool { ProcessInfo.processInfo.environment["AUTOBAHN_ALL_TESTS"] == "true" }
     var autobahnServer: String { ProcessInfo.processInfo.environment["FUZZING_SERVER"] ?? "localhost" }
 
     func getValue<T: Decodable & Sendable>(_ path: String, as: T.Type) async throws -> T {
@@ -129,7 +131,7 @@ final class AutobahnTests: XCTestCase {
     }
 
     func test_9_Performance() async throws {
-        if self.isCI {
+        if !self.runAllTests {
             try await self.autobahnTests(cases: .init([247, 260, 270, 281, 291, 296]))
         } else {
             try await self.autobahnTests(cases: .init(247..<301))
@@ -141,7 +143,7 @@ final class AutobahnTests: XCTestCase {
     }
 
     func test_12_CompressionDifferentPayloads() async throws {
-        if self.isCI {
+        if !self.runAllTests {
             try await self.autobahnTests(cases: .init([302, 330, 349, 360, 388]))
         } else {
             try await self.autobahnTests(cases: .init(302..<391))
@@ -149,7 +151,7 @@ final class AutobahnTests: XCTestCase {
     }
 
     func test_13_CompressionDifferentParameters() async throws {
-        if self.isCI {
+        if !self.runAllTests {
             try await self.autobahnTests(cases: .init([392]), extensions: [.perMessageDeflate(noContextTakeover: false, maxDecompressedFrameSize: 131_072)])
             try await self.autobahnTests(cases: .init([427]), extensions: [.perMessageDeflate(noContextTakeover: true, maxDecompressedFrameSize: 131_072)])
             try await self.autobahnTests(cases: .init([440]), extensions: [.perMessageDeflate(maxWindow: 9, noContextTakeover: false, maxDecompressedFrameSize: 131_072)])
