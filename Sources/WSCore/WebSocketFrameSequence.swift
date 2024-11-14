@@ -46,8 +46,8 @@ struct WebSocketFrameSequence {
         }
     }
 
-    var message: WebSocketMessage? {
-        .init(frame: self.collated)
+    func getMessage(validateUTF8: Bool) -> WebSocketMessage? {
+        .init(frame: self.collated, validate: validateUTF8)
     }
 
     var collated: WebSocketDataFrame {

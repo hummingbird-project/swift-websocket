@@ -18,6 +18,8 @@ extension ByteBuffer {
     /// Get the string at `index` from this `ByteBuffer` decoding using the UTF-8 encoding. Does not move the reader index.
     /// The selected bytes must be readable or else `nil` will be returned.
     ///
+    /// This is an alternative to `ByteBuffer.getString(at:length:)` which validates the string is valid UTF8
+    ///
     /// - Parameters:
     ///   - index: The starting index into `ByteBuffer` containing the string of interest.
     ///   - length: The number of bytes making up the string.
@@ -35,7 +37,11 @@ extension ByteBuffer {
         }
     }
 
-    /// Read `length` bytes off this `ByteBuffer`, decoding it as `String` using the UTF-8 encoding. Move the reader index forward by `length`.
+    /// Read `length` bytes off this `ByteBuffer`, decoding it as `String` using the UTF-8 encoding. Move the reader index
+    /// forward by `length`.
+    ///
+    /// This is an alternative to `ByteBuffer.readString(length:)` which validates the string is valid UTF8. Is the string
+    /// is not valid UTF8 then the reader index is not advanced.
     ///
     /// - Parameters:
     ///   - length: The number of bytes making up the string.
@@ -75,5 +81,19 @@ extension UnsafeRawBufferPointer {
     init(fastRebase slice: Slice<UnsafeRawBufferPointer>) {
         let base = slice.base.baseAddress?.advanced(by: slice.startIndex)
         self.init(start: base, count: slice.endIndex &- slice.startIndex)
+    }
+}
+
+extension String {
+    init?(buffer: ByteBuffer, validateUTF8: Bool) {
+        if #available(macOS 15, iOS 18, tvOS 18, watchOS 11, *), validateUTF8 {
+            if let validatedString = buffer.getValidatedString(at: buffer.readerIndex, length: buffer.readableBytes) {
+                self = validatedString
+            } else {
+                return nil
+            }
+        } else {
+            self = .init(buffer: buffer)
+        }
     }
 }

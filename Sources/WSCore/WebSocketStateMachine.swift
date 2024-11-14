@@ -54,17 +54,24 @@ struct WebSocketStateMachine {
 
     // we received a connection close.
     // send a close back if it hasn't already been send and exit
-    mutating func receivedClose(frameData: ByteBuffer) -> ReceivedCloseResult {
+    mutating func receivedClose(frameData: ByteBuffer, validateUTF8: Bool) -> ReceivedCloseResult {
         var frameData = frameData
         let dataSize = frameData.readableBytes
         // read close code and close reason
         let closeCode = frameData.readWebSocketErrorCode()
-        let reason = frameData.readableBytes > 0
-            ? frameData.readString(length: frameData.readableBytes)
-            : nil
+        let hasReason = frameData.readableBytes > 0
+        let reason: String? = if hasReason {
+            String(buffer: frameData, validateUTF8: validateUTF8)
+        } else {
+            nil
+        }
 
         switch self.state {
         case .open:
+            if hasReason, reason == nil {
+                self.state = .closed(closeCode.map { .init(closeCode: $0, reason: reason) })
+                return .sendClose(.protocolError)
+            }
             self.state = .closed(closeCode.map { .init(closeCode: $0, reason: reason) })
             let code: WebSocketErrorCode = if dataSize == 0 || closeCode != nil {
                 // codes 3000 - 3999 are reserved for use by libraries, frameworks
