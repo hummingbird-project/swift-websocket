@@ -14,11 +14,13 @@
 
 import NIOCore
 
+#if compiler(>=6)
+
 extension ByteBuffer {
     /// Get the string at `index` from this `ByteBuffer` decoding using the UTF-8 encoding. Does not move the reader index.
     /// The selected bytes must be readable or else `nil` will be returned.
     ///
-    /// This is an alternative to `ByteBuffer.getString(at:length:)` which validates the string is valid UTF8
+    /// This is an alternative to `ByteBuffer.getString(at:length:)` which ensures the string is valid UTF8
     ///
     /// - Parameters:
     ///   - index: The starting index into `ByteBuffer` containing the string of interest.
@@ -40,7 +42,7 @@ extension ByteBuffer {
     /// Read `length` bytes off this `ByteBuffer`, decoding it as `String` using the UTF-8 encoding. Move the reader index
     /// forward by `length`.
     ///
-    /// This is an alternative to `ByteBuffer.readString(length:)` which validates the string is valid UTF8. Is the string
+    /// This is an alternative to `ByteBuffer.readString(length:)` which ensures the string is valid UTF8. Is the string
     /// is not valid UTF8 then the reader index is not advanced.
     ///
     /// - Parameters:
@@ -84,8 +86,11 @@ extension UnsafeRawBufferPointer {
     }
 }
 
+#endif // compiler(>=6)
+
 extension String {
     init?(buffer: ByteBuffer, validateUTF8: Bool) {
+        #if compiler(>=6)
         if #available(macOS 15, iOS 18, tvOS 18, watchOS 11, *), validateUTF8 {
             if let validatedString = buffer.getValidatedString(at: buffer.readerIndex, length: buffer.readableBytes) {
                 self = validatedString
@@ -95,5 +100,8 @@ extension String {
         } else {
             self = .init(buffer: buffer)
         }
+        #else
+        self = .init(buffer: buffer)
+        #endif // compiler(>=6)
     }
 }
