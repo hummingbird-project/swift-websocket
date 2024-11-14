@@ -128,11 +128,21 @@ final class AutobahnTests: XCTestCase {
     }
 
     func test_6_UTF8Handling() async throws {
+        // UTF8 validation is available on swift 5.10 or earlier
+        #if compiler(<6)
+        try XCTSkipIf(true)
+        #endif
         try await self.autobahnTests(cases: .init(65..<210))
     }
 
     func test_7_CloseHandling() async throws {
+        // UTF8 validation is available on swift 5.10 or earlier
+        #if compiler(<6)
+        try await self.autobahnTests(cases: .init(210..<222))
+        try await self.autobahnTests(cases: .init(223..<247))
+        #else
         try await self.autobahnTests(cases: .init(210..<247))
+        #endif
     }
 
     func test_9_Performance() async throws {
