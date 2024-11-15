@@ -67,7 +67,7 @@ extension ByteBuffer {
     }
 
     /// Errors thrown when calling `readUTF8ValidatedString` or `getUTF8ValidatedString`.
-    public struct ReadUTF8ValidationError: Error {
+    public struct ReadUTF8ValidationError: Error, Equatable {
         private enum BaseError: Hashable {
             case invalidUTF8
         }
