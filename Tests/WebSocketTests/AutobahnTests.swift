@@ -20,6 +20,9 @@ import WSClient
 import WSCompression
 import XCTest
 
+/// The Autobahn|Testsuite provides a fully automated test suite to verify client and server
+/// implementations of The WebSocket Protocol for specification conformance and implementation robustness.
+/// You can find out more at https://github.com/crossbario/autobahn-testsuite
 final class AutobahnTests: XCTestCase {
     /// To run all the autobahn compression tests takes a long time. By default we only run a selection.
     /// The `AUTOBAHN_ALL_TESTS` environment flag triggers running all of them.
