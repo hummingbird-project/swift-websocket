@@ -15,12 +15,12 @@
 import NIOCore
 
 #if compiler(>=6)
-
 extension ByteBuffer {
     /// Get the string at `index` from this `ByteBuffer` decoding using the UTF-8 encoding. Does not move the reader index.
     /// The selected bytes must be readable or else `nil` will be returned.
     ///
-    /// This is an alternative to `ByteBuffer.getString(at:length:)` which ensures the string is valid UTF8
+    /// This is an alternative to `ByteBuffer.getString(at:length:)` which ensures the returned string is valid UTF8. If the
+    /// string is not valid UTF8 then a `ReadUTF8ValidationError` error is thrown.
     ///
     /// - Parameters:
     ///   - index: The starting index into `ByteBuffer` containing the string of interest.
@@ -29,33 +29,53 @@ extension ByteBuffer {
     ///            the requested bytes are not readable.
     @inlinable
     @available(macOS 15, iOS 18, tvOS 18, watchOS 11, *)
-    public func getValidatedString(at index: Int, length: Int) -> String? {
+    public func getUTF8ValidatedString(at index: Int, length: Int) throws -> String? {
         guard let range = self.rangeWithinReadableBytes(index: index, length: length) else {
             return nil
         }
-        return self.withUnsafeReadableBytes { pointer in
+        return try self.withUnsafeReadableBytes { pointer in
             assert(range.lowerBound >= 0 && (range.upperBound - range.lowerBound) <= pointer.count)
-            return String(validating: UnsafeRawBufferPointer(fastRebase: pointer[range]), as: Unicode.UTF8.self)
+            guard
+                let string = String(
+                    validating: UnsafeRawBufferPointer(fastRebase: pointer[range]),
+                    as: Unicode.UTF8.self
+                )
+            else {
+                throw ReadUTF8ValidationError.invalidUTF8
+            }
+            return string
         }
     }
 
     /// Read `length` bytes off this `ByteBuffer`, decoding it as `String` using the UTF-8 encoding. Move the reader index
     /// forward by `length`.
     ///
-    /// This is an alternative to `ByteBuffer.readString(length:)` which ensures the string is valid UTF8. Is the string
-    /// is not valid UTF8 then the reader index is not advanced.
+    /// This is an alternative to `ByteBuffer.readString(length:)` which ensures the returned string is valid UTF8. If the
+    /// string is not valid UTF8 then a `ReadUTF8ValidationError` error is thrown and the reader index is not advanced.
     ///
     /// - Parameters:
     ///   - length: The number of bytes making up the string.
     /// - Returns: A `String` value deserialized from this `ByteBuffer` or `nil` if there aren't at least `length` bytes readable.
     @inlinable
     @available(macOS 15, iOS 18, tvOS 18, watchOS 11, *)
-    public mutating func readValidatedString(length: Int) -> String? {
-        guard let result = self.getValidatedString(at: self.readerIndex, length: length) else {
+    public mutating func readUTF8ValidatedString(length: Int) throws -> String? {
+        guard let result = try self.getUTF8ValidatedString(at: self.readerIndex, length: length) else {
             return nil
         }
         self.moveReaderIndex(forwardBy: length)
         return result
+    }
+
+    /// Errors thrown when calling `readUTF8ValidatedString` or `getUTF8ValidatedString`.
+    public struct ReadUTF8ValidationError: Error {
+        private enum BaseError: Hashable {
+            case invalidUTF8
+        }
+
+        private var baseError: BaseError
+
+        /// The length of the bytes to copy was negative.
+        public static let invalidUTF8: ReadUTF8ValidationError = .init(baseError: .invalidUTF8)
     }
 
     @inlinable
@@ -92,9 +112,10 @@ extension String {
     init?(buffer: ByteBuffer, validateUTF8: Bool) {
         #if compiler(>=6)
         if #available(macOS 15, iOS 18, tvOS 18, watchOS 11, *), validateUTF8 {
-            if let validatedString = buffer.getValidatedString(at: buffer.readerIndex, length: buffer.readableBytes) {
-                self = validatedString
-            } else {
+            do {
+                var buffer = buffer
+                self = try buffer.readUTF8ValidatedString(length: buffer.readableBytes)!
+            } catch {
                 return nil
             }
         } else {
