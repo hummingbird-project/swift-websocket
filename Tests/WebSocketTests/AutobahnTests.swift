@@ -21,7 +21,7 @@ import WSCompression
 import XCTest
 
 final class AutobahnTests: XCTestCase {
-    /// To run all the autobahn tests takes a long time. By default we only run a selection.
+    /// To run all the autobahn compression tests takes a long time. By default we only run a selection.
     /// The `AUTOBAHN_ALL_TESTS` environment flag triggers running all of them.
     var runAllTests: Bool { ProcessInfo.processInfo.environment["AUTOBAHN_ALL_TESTS"] == "true" }
     var autobahnServer: String { ProcessInfo.processInfo.environment["FUZZING_SERVER"] ?? "localhost" }
@@ -50,6 +50,7 @@ final class AutobahnTests: XCTestCase {
         return try result.withLockedValue { try XCTUnwrap($0) }
     }
 
+    /// Run a number of autobahn tests
     func autobahnTests(
         cases: Set<Int>,
         extensions: [WebSocketExtensionFactory] = [.perMessageDeflate(maxDecompressedFrameSize: 16_777_216)]
