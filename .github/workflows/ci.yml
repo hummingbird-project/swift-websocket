@@ -35,7 +35,16 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
+    - name: Restart Autobahn
+      # The autobahn service container is started *before* swift-websocket is checked
+      # out. Restarting the container after the checkout step is needed for the
+      # container to see volumes populated from the checked out workspace.
+      uses: docker://docker
+      with:
+        args: docker restart fuzzingserver
     - name: Test
+      env:
+        FUZZING_SERVER: autobahn
       run: |
         swift test --enable-code-coverage
     - name: Convert coverage files
