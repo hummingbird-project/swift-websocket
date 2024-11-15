@@ -27,7 +27,7 @@ jobs:
     services:
       autobahn:
         image: crossbario/autobahn-testsuite
-        options: --name fuzzyingserver
+        options: --name fuzzingserver
         ports: 
           - 9001:9001
         volumes:
@@ -41,7 +41,7 @@ jobs:
       # container to see volumes populated from the checked out workspace.
       uses: docker://docker
       with:
-        args: docker restart fuzzyingserver
+        args: docker restart fuzzingserver
     - name: Test
       env:
         FUZZING_SERVER: autobahn
