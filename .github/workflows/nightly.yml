@@ -3,6 +3,8 @@ name: Swift nightly build
 on:
   workflow_dispatch:
 
+env:
+  FUZZING_SERVER: autobahn
 jobs:
   linux:
     runs-on: ubuntu-latest
@@ -10,13 +12,28 @@ jobs:
     strategy:
       matrix:
         image: ['nightly-focal', 'nightly-jammy', 'nightly-amazonlinux2']
-        
-    
     container:
       image: swiftlang/swift:${{ matrix.image }}
+    services:
+      autobahn:
+        image: crossbario/autobahn-testsuite
+        options: --name fuzzingserver
+        ports:
+          - 9001:9001
+        volumes:
+          - ${{ github.workspace }}/scripts/autobahn-config:/config
+
     steps:
     - name: Checkout
       uses: actions/checkout@v4
+    - name: Restart Autobahn
+      # The autobahn service container is started *before* swift-websocket is checked
+      # out. Restarting the container after the checkout step is needed for the
+      # container to see volumes populated from the checked out workspace.
+      uses: docker://docker
+      with:
+        args: docker restart fuzzingserver
+
     - name: Test
       run: |
         swift test

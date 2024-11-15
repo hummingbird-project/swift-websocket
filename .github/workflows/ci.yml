@@ -13,6 +13,8 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-ci
   cancel-in-progress: true
 
+env:
+  FUZZING_SERVER: autobahn
 jobs:
   linux:
     runs-on: ubuntu-latest
@@ -20,18 +22,17 @@ jobs:
     strategy:
       matrix:
         image: ["swift:5.10", "swift:6.0"]
-        
-    
     container:
       image: ${{ matrix.image }}
     services:
       autobahn:
         image: crossbario/autobahn-testsuite
         options: --name fuzzingserver
-        ports: 
+        ports:
           - 9001:9001
         volumes:
           - ${{ github.workspace }}/scripts/autobahn-config:/config
+
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -42,9 +43,8 @@ jobs:
       uses: docker://docker
       with:
         args: docker restart fuzzingserver
+
     - name: Test
-      env:
-        FUZZING_SERVER: autobahn
       run: |
         swift test --enable-code-coverage
     - name: Convert coverage files
@@ -57,4 +57,4 @@ jobs:
     - name: Upload to codecov.io
       uses: codecov/codecov-action@v5
       with:
-        file: info.lcov
+        files: info.lcov
