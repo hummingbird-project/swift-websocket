@@ -32,6 +32,9 @@ public struct WebSocketClientConfiguration: Sendable {
     ///   - Paramters
     ///     - maxFrameSize: Max websocket frame size that can be sent/received
     ///     - additionalHeaders: Additional headers to be sent with the initial HTTP request
+    ///     - extensions: WebSocket extensions
+    ///     - autoPing: Automatic Ping configuration
+    ///     - validateUTF8: Should text be checked to see if it is valid UTF8
     public init(
         maxFrameSize: Int = (1 << 14),
         additionalHeaders: HTTPFields = .init(),
