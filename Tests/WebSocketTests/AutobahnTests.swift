@@ -20,8 +20,11 @@ import WSClient
 import WSCompression
 import XCTest
 
+/// The Autobahn|Testsuite provides a fully automated test suite to verify client and server
+/// implementations of The WebSocket Protocol for specification conformance and implementation robustness.
+/// You can find out more at https://github.com/crossbario/autobahn-testsuite
 final class AutobahnTests: XCTestCase {
-    /// To run all the autobahn tests takes a long time. By default we only run a selection.
+    /// To run all the autobahn compression tests takes a long time. By default we only run a selection.
     /// The `AUTOBAHN_ALL_TESTS` environment flag triggers running all of them.
     var runAllTests: Bool { ProcessInfo.processInfo.environment["AUTOBAHN_ALL_TESTS"] == "true" }
     var autobahnServer: String { ProcessInfo.processInfo.environment["FUZZING_SERVER"] ?? "localhost" }
@@ -30,6 +33,7 @@ final class AutobahnTests: XCTestCase {
         let result: NIOLockedValueBox<T?> = .init(nil)
         try await WebSocketClient.connect(
             url: .init("ws://\(self.autobahnServer):9001/\(path)"),
+            configuration: .init(validateUTF8: true),
             logger: Logger(label: "Autobahn")
         ) { inbound, _, _ in
             var inboundIterator = inbound.messages(maxSize: .max).makeAsyncIterator()
@@ -49,6 +53,7 @@ final class AutobahnTests: XCTestCase {
         return try result.withLockedValue { try XCTUnwrap($0) }
     }
 
+    /// Run a number of autobahn tests
     func autobahnTests(
         cases: Set<Int>,
         extensions: [WebSocketExtensionFactory] = [.perMessageDeflate(maxDecompressedFrameSize: 16_777_216)]
@@ -73,7 +78,11 @@ final class AutobahnTests: XCTestCase {
                 // run case
                 try await WebSocketClient.connect(
                     url: .init("ws://\(self.autobahnServer):9001/runCase?case=\(index)&agent=swift-websocket"),
-                    configuration: .init(maxFrameSize: 16_777_216, extensions: extensions),
+                    configuration: .init(
+                        maxFrameSize: 16_777_216,
+                        extensions: extensions,
+                        validateUTF8: true
+                    ),
                     logger: logger
                 ) { inbound, outbound, _ in
                     for try await msg in inbound.messages(maxSize: .max) {
@@ -88,7 +97,11 @@ final class AutobahnTests: XCTestCase {
 
                 // get case status
                 let status = try await getValue("getCaseStatus?case=\(index)&agent=swift-websocket", as: CaseStatus.self)
-                XCTAssert(status.behavior == "OK" || status.behavior == "INFORMATIONAL")
+                XCTAssert(status.behavior == "OK" || status.behavior == "INFORMATIONAL" || status.behavior == "NON-STRICT")
+            }
+
+            try await WebSocketClient.connect(url: .init("ws://\(self.autobahnServer):9001/updateReports?agent=HB"), logger: logger) { inbound, _, _ in
+                for try await _ in inbound {}
             }
         } catch let error as NIOConnectionError {
             logger.error("Autobahn tests require a running Autobahn fuzzing server. Run ./scripts/autobahn-server.sh")
@@ -119,15 +132,21 @@ final class AutobahnTests: XCTestCase {
     }
 
     func test_6_UTF8Handling() async throws {
-        // UTF8 validation fails
+        // UTF8 validation is available on swift 5.10 or earlier
+        #if compiler(<6)
         try XCTSkipIf(true)
+        #endif
         try await self.autobahnTests(cases: .init(65..<210))
     }
 
     func test_7_CloseHandling() async throws {
+        // UTF8 validation is available on swift 5.10 or earlier
+        #if compiler(<6)
         try await self.autobahnTests(cases: .init(210..<222))
-        // UTF8 validation fails so skip 222
         try await self.autobahnTests(cases: .init(223..<247))
+        #else
+        try await self.autobahnTests(cases: .init(210..<247))
+        #endif
     }
 
     func test_9_Performance() async throws {

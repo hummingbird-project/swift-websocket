@@ -31,14 +31,14 @@ final class WebSocketStateMachineTests: XCTestCase {
         var stateMachine = WebSocketStateMachine(autoPingSetup: .disabled)
         guard case .sendClose = stateMachine.close() else { XCTFail(); return }
         guard case .doNothing = stateMachine.close() else { XCTFail(); return }
-        guard case .doNothing = stateMachine.receivedClose(frameData: self.closeFrameData()) else { XCTFail(); return }
+        guard case .doNothing = stateMachine.receivedClose(frameData: self.closeFrameData(), validateUTF8: false) else { XCTFail(); return }
         guard case .closed(let frame) = stateMachine.state else { XCTFail(); return }
         XCTAssertEqual(frame?.closeCode, .normalClosure)
     }
 
     func testReceivedClose() {
         var stateMachine = WebSocketStateMachine(autoPingSetup: .disabled)
-        guard case .sendClose(let error) = stateMachine.receivedClose(frameData: closeFrameData(code: .goingAway)) else { XCTFail(); return }
+        guard case .sendClose(let error) = stateMachine.receivedClose(frameData: closeFrameData(code: .goingAway), validateUTF8: false) else { XCTFail(); return }
         XCTAssertEqual(error, .normalClosure)
         guard case .closed(let frame) = stateMachine.state else { XCTFail(); return }
         XCTAssertEqual(frame?.closeCode, .goingAway)

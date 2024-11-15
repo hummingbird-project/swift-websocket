@@ -25,6 +25,8 @@ public struct WebSocketClientConfiguration: Sendable {
     public var extensions: [any WebSocketExtensionBuilder]
     /// Automatic ping setup
     public var autoPing: AutoPingSetup
+    /// Should text be validated to be UTF8
+    public var validateUTF8: Bool
 
     /// Initialize WebSocketClient configuration
     ///   - Paramters
@@ -34,11 +36,13 @@ public struct WebSocketClientConfiguration: Sendable {
         maxFrameSize: Int = (1 << 14),
         additionalHeaders: HTTPFields = .init(),
         extensions: [WebSocketExtensionFactory] = [],
-        autoPing: AutoPingSetup = .disabled
+        autoPing: AutoPingSetup = .disabled,
+        validateUTF8: Bool = false
     ) {
         self.maxFrameSize = maxFrameSize
         self.additionalHeaders = additionalHeaders
         self.extensions = extensions.map { $0.build() }
         self.autoPing = autoPing
+        self.validateUTF8 = validateUTF8
     }
 }

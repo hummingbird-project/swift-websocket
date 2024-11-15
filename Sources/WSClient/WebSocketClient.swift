@@ -40,8 +40,7 @@ import WSCore
 /// }
 /// ```
 public struct WebSocketClient {
-    /// Basic context implementation of ``/HummingbirdWSCore/WebSocketContext``.
-    /// Used by non-router web socket handle function
+    /// Client implementation of ``/WSCore/WebSocketContext``.
     public struct Context: WebSocketContext {
         public let logger: Logger
 

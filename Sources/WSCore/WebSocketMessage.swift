@@ -20,10 +20,13 @@ public enum WebSocketMessage: Equatable, Sendable, CustomStringConvertible, Cust
     case text(String)
     case binary(ByteBuffer)
 
-    init?(frame: WebSocketDataFrame) {
+    init?(frame: WebSocketDataFrame, validate: Bool) {
         switch frame.opcode {
         case .text:
-            self = .text(String(buffer: frame.data))
+            guard let string = String(buffer: frame.data, validateUTF8: validate) else {
+                return nil
+            }
+            self = .text(string)
         case .binary:
             self = .binary(frame.data)
         default:

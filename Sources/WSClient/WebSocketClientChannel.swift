@@ -101,7 +101,8 @@ struct WebSocketClientChannel: ClientConnectionChannel {
                 type: .client,
                 configuration: .init(
                     extensions: extensions,
-                    autoPing: self.configuration.autoPing
+                    autoPing: self.configuration.autoPing,
+                    validateUTF8: self.configuration.validateUTF8
                 ),
                 asyncChannel: webSocketChannel,
                 context: WebSocketClient.Context(logger: logger),

@@ -108,25 +108,28 @@ public final class WebSocketInboundStream: AsyncSequence, Sendable {
             case .text, .binary:
                 frameSequence = .init(frame: frame)
                 if frame.fin {
-                    return frameSequence.message
+                    guard let message = frameSequence.getMessage(validateUTF8: self.handler.configuration.validateUTF8) else {
+                        throw WebSocketHandler.InternalError.close(.dataInconsistentWithMessage)
+                    }
+                    return message
                 }
             default:
-                try await self.handler.close(code: .protocolError)
-                return nil
+                throw WebSocketHandler.InternalError.close(.protocolError)
             }
             // parse continuation frames until we get a frame with a FIN flag
             while let frame = try await self.next() {
                 guard frame.opcode == .continuation else {
-                    try await self.handler.close(code: .protocolError)
-                    return nil
+                    throw WebSocketHandler.InternalError.close(.protocolError)
                 }
                 guard frameSequence.size + frame.data.readableBytes <= maxSize else {
-                    try await self.handler.close(code: .messageTooLarge)
-                    return nil
+                    throw WebSocketHandler.InternalError.close(.messageTooLarge)
                 }
                 frameSequence.append(frame)
                 if frame.fin {
-                    return frameSequence.message
+                    guard let message = frameSequence.getMessage(validateUTF8: self.handler.configuration.validateUTF8) else {
+                        throw WebSocketHandler.InternalError.close(.dataInconsistentWithMessage)
+                    }
+                    return message
                 }
             }
             return nil

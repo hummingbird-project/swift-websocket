@@ -70,10 +70,12 @@ public struct WebSocketCloseFrame: Sendable {
     @_spi(WSInternal) public struct Configuration: Sendable {
         let extensions: [any WebSocketExtension]
         let autoPing: AutoPingSetup
+        let validateUTF8: Bool
 
-        @_spi(WSInternal) public init(extensions: [any WebSocketExtension], autoPing: AutoPingSetup) {
+        @_spi(WSInternal) public init(extensions: [any WebSocketExtension], autoPing: AutoPingSetup, validateUTF8: Bool) {
             self.extensions = extensions
             self.autoPing = autoPing
+            self.validateUTF8 = validateUTF8
         }
     }
 
@@ -287,7 +289,7 @@ public struct WebSocketCloseFrame: Sendable {
     }
 
     func receivedClose(_ frame: WebSocketFrame) async throws {
-        switch self.stateMachine.receivedClose(frameData: frame.unmaskedData) {
+        switch self.stateMachine.receivedClose(frameData: frame.unmaskedData, validateUTF8: self.configuration.validateUTF8) {
         case .sendClose(let errorCode):
             try await self.sendClose(code: errorCode, reason: nil)
             // Only server should initiate a connection close. Clients should wait for the
