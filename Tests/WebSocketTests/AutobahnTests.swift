@@ -32,7 +32,7 @@ final class AutobahnTests: XCTestCase {
     func getValue<T: Decodable & Sendable>(_ path: String, as: T.Type) async throws -> T {
         let result: NIOLockedValueBox<T?> = .init(nil)
         try await WebSocketClient.connect(
-            url: .init("ws://\(self.autobahnServer):9001/\(path)"),
+            url: "ws://\(self.autobahnServer):9001/\(path)",
             configuration: .init(validateUTF8: true),
             logger: Logger(label: "Autobahn")
         ) { inbound, _, _ in
@@ -77,7 +77,7 @@ final class AutobahnTests: XCTestCase {
 
                 // run case
                 try await WebSocketClient.connect(
-                    url: .init("ws://\(self.autobahnServer):9001/runCase?case=\(index)&agent=swift-websocket"),
+                    url: "ws://\(self.autobahnServer):9001/runCase?case=\(index)&agent=swift-websocket",
                     configuration: .init(
                         maxFrameSize: 16_777_216,
                         extensions: extensions,
