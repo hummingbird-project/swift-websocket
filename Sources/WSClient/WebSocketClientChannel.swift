@@ -51,6 +51,12 @@ struct WebSocketClientChannel: ClientConnectionChannel {
                         // work out what extensions we should add based off the server response
                         let headerFields = HTTPFields(head.headers, splitCookie: false)
                         let serverExtensions = WebSocketExtensionHTTPParameters.parseHeaders(headerFields)
+                        if serverExtensions.count > 0 {
+                            logger.debug(
+                                "Enabled extensions",
+                                metadata: ["hb.ws.extensions": .string(serverExtensions.map(\.name).joined(separator: ","))]
+                            )
+                        }
                         let extensions = try configuration.extensions.compactMap {
                             try $0.clientExtension(from: serverExtensions)
                         }
