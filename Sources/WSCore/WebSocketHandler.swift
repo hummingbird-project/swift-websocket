@@ -106,7 +106,7 @@ public struct WebSocketCloseFrame: Sendable {
         configuration: Configuration,
         asyncChannel: NIOAsyncChannel<WebSocketFrame, WebSocketFrame>,
         context: Context,
-        handler: @escaping WebSocketDataHandler<Context>
+        handler: WebSocketDataHandler<Context>
     ) async throws -> WebSocketCloseFrame? {
         defer {
             context.logger.debug("Closed WebSocket")
@@ -145,7 +145,7 @@ public struct WebSocketCloseFrame: Sendable {
         type: WebSocketType,
         inbound: NIOAsyncChannelInboundStream<WebSocketFrame>,
         outbound: NIOAsyncChannelOutboundWriter<WebSocketFrame>,
-        handler: @escaping WebSocketDataHandler<Context>,
+        handler: WebSocketDataHandler<Context>,
         context: Context
     ) async throws -> WebSocketCloseFrame? {
         try await withGracefulShutdownHandler {
