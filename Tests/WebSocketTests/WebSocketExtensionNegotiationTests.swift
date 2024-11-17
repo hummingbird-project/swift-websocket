@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 import HTTPTypes
+import NIOWebSocket
 @testable import WSCompression
 @testable import WSCore
 import XCTest
@@ -63,16 +64,81 @@ final class WebSocketExtensionNegotiationTests: XCTestCase {
         )
     }
 
-    func testUnregonisedExtensionServerResponse() {
-        let requestHeaders: [WebSocketExtensionHTTPParameters] = [
-            .init("permessage-foo", parameters: ["bar": .value("baz")]),
-            .init("permessage-deflate", parameters: ["client_max_window_bits": .value("10")]),
-        ]
-        let ext = PerMessageDeflateExtensionBuilder()
-        let serverResponse = ext.serverResponseHeader(to: requestHeaders)
+    func testUnregonisedExtensionServerResponse() throws {
+        let serverExtensions: [WebSocketExtensionBuilder] = [PerMessageDeflateExtensionBuilder()]
+        let (headers, extensions) = try serverExtensions.serverExtensionNegotiation(
+            requestHeaders: [.secWebSocketExtensions: "permessage-foo;bar=baz,permessage-deflate;client_max_window_bits=10"]
+        )
         XCTAssertEqual(
-            serverResponse,
+            headers[.secWebSocketExtensions],
             "permessage-deflate;client_max_window_bits=10"
         )
+        XCTAssertEqual(extensions.count, 1)
+        XCTAssert(extensions[0] is PerMessageDeflateExtension)
+
+        let requestExtensions = try serverExtensions.buildClientExtensions(from: headers)
+        XCTAssertEqual(requestExtensions.count, 1)
+        XCTAssert(requestExtensions[0] is PerMessageDeflateExtension)
+    }
+
+    func testNonNegotiableClientExtension() throws {
+        struct MyExtensionBuilder: WebSocketNonNegotiableExtensionBuilder {
+            func build() -> any WebSocketExtension {
+                MyExtension()
+            }
+
+            static let name = "my-extension"
+
+            struct MyExtension: WebSocketExtension {
+                var name = "my-extension"
+
+                func processReceivedFrame(_ frame: WebSocketFrame, context: WebSocketExtensionContext) async throws -> WebSocketFrame {
+                    return frame
+                }
+
+                func processFrameToSend(_ frame: WebSocketFrame, context: WebSocketExtensionContext) async throws -> WebSocketFrame {
+                    return frame
+                }
+
+                func shutdown() async {}
+            }
+        }
+        let clientExtensionBuilders: [WebSocketExtensionBuilder] = [MyExtensionBuilder()]
+        let clientExtensions = try clientExtensionBuilders.buildClientExtensions(from: [:])
+        XCTAssertEqual(clientExtensions.count, 1)
+        let myExtension = try XCTUnwrap(clientExtensions.first)
+        XCTAssert(myExtension is MyExtensionBuilder.MyExtension)
+    }
+
+    func testNonNegotiableServerExtension() throws {
+        struct MyExtensionBuilder: WebSocketNonNegotiableExtensionBuilder {
+            func build() -> any WebSocketExtension {
+                MyExtension()
+            }
+
+            static let name = "my-extension"
+
+            struct MyExtension: WebSocketExtension {
+                var name = "my-extension"
+
+                func processReceivedFrame(_ frame: WebSocketFrame, context: WebSocketExtensionContext) async throws -> WebSocketFrame {
+                    return frame
+                }
+
+                func processFrameToSend(_ frame: WebSocketFrame, context: WebSocketExtensionContext) async throws -> WebSocketFrame {
+                    return frame
+                }
+
+                func shutdown() async {}
+            }
+        }
+        let serverExtensionBuilders: [WebSocketExtensionBuilder] = [MyExtensionBuilder()]
+        let (headers, serverExtensions) = try serverExtensionBuilders.serverExtensionNegotiation(
+            requestHeaders: [:]
+        )
+        XCTAssertEqual(headers.count, 0)
+        XCTAssertEqual(serverExtensions.count, 1)
+        let myExtension = try XCTUnwrap(serverExtensions.first)
+        XCTAssert(myExtension is MyExtensionBuilder.MyExtension)
     }
 }
