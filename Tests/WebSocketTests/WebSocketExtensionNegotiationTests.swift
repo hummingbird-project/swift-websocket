@@ -67,14 +67,18 @@ final class WebSocketExtensionNegotiationTests: XCTestCase {
     func testUnregonisedExtensionServerResponse() throws {
         let serverExtensions: [WebSocketExtensionBuilder] = [PerMessageDeflateExtensionBuilder()]
         let (headers, extensions) = try serverExtensions.serverExtensionNegotiation(
-            requestHeaders: [.secWebSocketExtensions: "permessage-foo;bar=baz,permessage-deflate;client_max_window_bits=10"]
+            requestHeaders: [
+                .secWebSocketExtensions: "permessage-foo;bar=baz",
+                .secWebSocketExtensions: "permessage-deflate;client_max_window_bits=10",
+            ]
         )
         XCTAssertEqual(
             headers[.secWebSocketExtensions],
             "permessage-deflate;client_max_window_bits=10"
         )
         XCTAssertEqual(extensions.count, 1)
-        XCTAssert(extensions[0] is PerMessageDeflateExtension)
+        let firstExtension = try XCTUnwrap(extensions.first)
+        XCTAssert(firstExtension is PerMessageDeflateExtension)
 
         let requestExtensions = try serverExtensions.buildClientExtensions(from: headers)
         XCTAssertEqual(requestExtensions.count, 1)
