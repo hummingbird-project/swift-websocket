@@ -47,7 +47,7 @@ extension WebSocketExtensionBuilder {
                 return ext
             }
         }
-        if let nonNegotiableExtensionBuilder = self as? WebSocketNonNegotiableExtensionBuilder {
+        if let nonNegotiableExtensionBuilder = self as? any _WebSocketNonNegotiableExtensionBuilderProtocol {
             return nonNegotiableExtensionBuilder.build()
         }
         return nil
@@ -61,16 +61,32 @@ extension WebSocketExtensionBuilder {
                 return ext
             }
         }
-        if let nonNegotiableExtensionBuilder = self as? WebSocketNonNegotiableExtensionBuilder {
+        if let nonNegotiableExtensionBuilder = self as? any _WebSocketNonNegotiableExtensionBuilderProtocol {
             return nonNegotiableExtensionBuilder.build()
         }
         return nil
     }
 }
 
+/// Protocol for w WebSocket extension that is applied without any negotiation with the other side
+protocol _WebSocketNonNegotiableExtensionBuilderProtocol: WebSocketExtensionBuilder {
+    associatedtype Extension: WebSocketExtension
+    func build() -> Extension
+}
+
 /// A WebSocket extension that is applied without any negotiation with the other side
-public protocol WebSocketNonNegotiableExtensionBuilder: WebSocketExtensionBuilder {
-    func build() -> any WebSocketExtension
+public struct WebSocketNonNegotiableExtensionBuilder<Extension: WebSocketExtension>: _WebSocketNonNegotiableExtensionBuilderProtocol {
+    public static var name: String { String(describing: type(of: Extension.self)) }
+
+    let _build: @Sendable () -> Extension
+
+    init(_ build: @escaping @Sendable () -> Extension) {
+        self._build = build
+    }
+
+    public func build() -> Extension {
+        self._build()
+    }
 }
 
 extension WebSocketNonNegotiableExtensionBuilder {
@@ -79,9 +95,9 @@ extension WebSocketNonNegotiableExtensionBuilder {
     /// construct server response header based of client request
     public func serverReponseHeader(to: WebSocketExtensionHTTPParameters) -> String? { nil }
     /// construct server version of extension based of client request
-    public func serverExtension(from: WebSocketExtensionHTTPParameters) throws -> (any WebSocketExtension)? { build() }
+    public func serverExtension(from: WebSocketExtensionHTTPParameters) throws -> (any WebSocketExtension)? { self.build() }
     /// construct client version of extension based of server response
-    public func clientExtension(from: WebSocketExtensionHTTPParameters) throws -> (any WebSocketExtension)? { build() }
+    public func clientExtension(from: WebSocketExtensionHTTPParameters) throws -> (any WebSocketExtension)? { self.build() }
 }
 
 extension Array<any WebSocketExtensionBuilder> {
@@ -116,5 +132,13 @@ public struct WebSocketExtensionFactory: Sendable {
 
     public init(_ build: @escaping @Sendable () -> any WebSocketExtensionBuilder) {
         self.build = build
+    }
+
+    public static func nonNegotiableExtension(_ _build: @escaping @Sendable () -> some WebSocketExtension) -> Self {
+        return .init {
+            WebSocketNonNegotiableExtensionBuilder {
+                _build()
+            }
+        }
     }
 }

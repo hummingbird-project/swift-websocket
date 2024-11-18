@@ -86,63 +86,49 @@ final class WebSocketExtensionNegotiationTests: XCTestCase {
     }
 
     func testNonNegotiableClientExtension() throws {
-        struct MyExtensionBuilder: WebSocketNonNegotiableExtensionBuilder {
-            func build() -> any WebSocketExtension {
-                MyExtension()
+        struct MyExtension: WebSocketExtension {
+            var name = "my-extension"
+
+            func processReceivedFrame(_ frame: WebSocketFrame, context: WebSocketExtensionContext) async throws -> WebSocketFrame {
+                return frame
             }
 
-            static let name = "my-extension"
-
-            struct MyExtension: WebSocketExtension {
-                var name = "my-extension"
-
-                func processReceivedFrame(_ frame: WebSocketFrame, context: WebSocketExtensionContext) async throws -> WebSocketFrame {
-                    return frame
-                }
-
-                func processFrameToSend(_ frame: WebSocketFrame, context: WebSocketExtensionContext) async throws -> WebSocketFrame {
-                    return frame
-                }
-
-                func shutdown() async {}
+            func processFrameToSend(_ frame: WebSocketFrame, context: WebSocketExtensionContext) async throws -> WebSocketFrame {
+                return frame
             }
+
+            func shutdown() async {}
         }
-        let clientExtensionBuilders: [WebSocketExtensionBuilder] = [MyExtensionBuilder()]
+        let clientExtensionBuilders: [WebSocketExtensionBuilder] = [WebSocketExtensionFactory.nonNegotiableExtension {
+            MyExtension()
+        }.build()]
         let clientExtensions = try clientExtensionBuilders.buildClientExtensions(from: [:])
         XCTAssertEqual(clientExtensions.count, 1)
         let myExtension = try XCTUnwrap(clientExtensions.first)
-        XCTAssert(myExtension is MyExtensionBuilder.MyExtension)
+        XCTAssert(myExtension is MyExtension)
     }
 
     func testNonNegotiableServerExtension() throws {
-        struct MyExtensionBuilder: WebSocketNonNegotiableExtensionBuilder {
-            func build() -> any WebSocketExtension {
-                MyExtension()
+        struct MyExtension: WebSocketExtension {
+            var name = "my-extension"
+
+            func processReceivedFrame(_ frame: WebSocketFrame, context: WebSocketExtensionContext) async throws -> WebSocketFrame {
+                return frame
             }
 
-            static let name = "my-extension"
-
-            struct MyExtension: WebSocketExtension {
-                var name = "my-extension"
-
-                func processReceivedFrame(_ frame: WebSocketFrame, context: WebSocketExtensionContext) async throws -> WebSocketFrame {
-                    return frame
-                }
-
-                func processFrameToSend(_ frame: WebSocketFrame, context: WebSocketExtensionContext) async throws -> WebSocketFrame {
-                    return frame
-                }
-
-                func shutdown() async {}
+            func processFrameToSend(_ frame: WebSocketFrame, context: WebSocketExtensionContext) async throws -> WebSocketFrame {
+                return frame
             }
+
+            func shutdown() async {}
         }
-        let serverExtensionBuilders: [WebSocketExtensionBuilder] = [MyExtensionBuilder()]
+        let serverExtensionBuilders: [WebSocketExtensionBuilder] = [WebSocketNonNegotiableExtensionBuilder { MyExtension() }]
         let (headers, serverExtensions) = try serverExtensionBuilders.serverExtensionNegotiation(
             requestHeaders: [:]
         )
         XCTAssertEqual(headers.count, 0)
         XCTAssertEqual(serverExtensions.count, 1)
         let myExtension = try XCTUnwrap(serverExtensions.first)
-        XCTAssert(myExtension is MyExtensionBuilder.MyExtension)
+        XCTAssert(myExtension is MyExtension)
     }
 }
