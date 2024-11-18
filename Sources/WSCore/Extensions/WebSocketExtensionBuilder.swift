@@ -134,11 +134,18 @@ public struct WebSocketExtensionFactory: Sendable {
         self.build = build
     }
 
-    public static func nonNegotiatedExtension(_ _build: @escaping @Sendable () -> some WebSocketExtension) -> Self {
+    /// Extension to be applied without negotiation with the other side.
+    ///
+    /// Most extensions involve some form of negotiation between the client and the server
+    /// to decide on whether they should be applied and with what parameters. This extension
+    /// builder is for the situation where no negotiation is needed or that negotiation has
+    /// already occurred.
+    ///
+    /// - Parameter build: closure creating extension
+    /// - Returns: WebSocketExtensionFactory
+    public static func nonNegotiatedExtension(_ build: @escaping @Sendable () -> some WebSocketExtension) -> Self {
         return .init {
-            WebSocketNonNegotiableExtensionBuilder {
-                _build()
-            }
+            WebSocketNonNegotiableExtensionBuilder(build)
         }
     }
 }
