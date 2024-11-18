@@ -99,7 +99,7 @@ final class WebSocketExtensionNegotiationTests: XCTestCase {
 
             func shutdown() async {}
         }
-        let clientExtensionBuilders: [WebSocketExtensionBuilder] = [WebSocketExtensionFactory.nonNegotiableExtension {
+        let clientExtensionBuilders: [WebSocketExtensionBuilder] = [WebSocketExtensionFactory.nonNegotiatedExtension {
             MyExtension()
         }.build()]
         let clientExtensions = try clientExtensionBuilders.buildClientExtensions(from: [:])

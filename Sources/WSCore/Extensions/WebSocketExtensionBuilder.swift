@@ -134,7 +134,7 @@ public struct WebSocketExtensionFactory: Sendable {
         self.build = build
     }
 
-    public static func nonNegotiableExtension(_ _build: @escaping @Sendable () -> some WebSocketExtension) -> Self {
+    public static func nonNegotiatedExtension(_ _build: @escaping @Sendable () -> some WebSocketExtension) -> Self {
         return .init {
             WebSocketNonNegotiableExtensionBuilder {
                 _build()
