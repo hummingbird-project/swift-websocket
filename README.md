@@ -11,7 +11,7 @@ Package containing support for WebSockets. It contains three libraries
 
 ### Client
 
-The WebSocketClient is built on top of structured concurrency. When you connect it calls the closure you provide with an inbound stream of frames, a writer to write outbound frames and a context structure. When you exit the closure the connection the client will automatically perform the close handshake for you. 
+The WebSocketClient is built on top of structured concurrency. When you connect it calls the closure you provide with an inbound stream of frames, a writer to write outbound frames and a context structure. When you exit the closure the client will automatically perform the close handshake for you. 
 
 ```swift
 import WSClient
