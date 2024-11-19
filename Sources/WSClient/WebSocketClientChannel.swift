@@ -50,15 +50,12 @@ struct WebSocketClientChannel: ClientConnectionChannel {
                         let asyncChannel = try NIOAsyncChannel<WebSocketFrame, WebSocketFrame>(wrappingChannelSynchronously: channel)
                         // work out what extensions we should add based off the server response
                         let headerFields = HTTPFields(head.headers, splitCookie: false)
-                        let serverExtensions = WebSocketExtensionHTTPParameters.parseHeaders(headerFields)
-                        if serverExtensions.count > 0 {
+                        let extensions = try configuration.extensions.buildClientExtensions(from: headerFields)
+                        if extensions.count > 0 {
                             logger.debug(
                                 "Enabled extensions",
-                                metadata: ["hb.ws.extensions": .string(serverExtensions.map(\.name).joined(separator: ","))]
+                                metadata: ["hb.ws.extensions": .string(extensions.map(\.name).joined(separator: ","))]
                             )
-                        }
-                        let extensions = try configuration.extensions.compactMap {
-                            try $0.clientExtension(from: serverExtensions)
                         }
                         return UpgradeResult.websocket(asyncChannel, extensions)
                     }
@@ -71,7 +68,10 @@ struct WebSocketClientChannel: ClientConnectionChannel {
             let additionalHeaders = HTTPHeaders(self.configuration.additionalHeaders)
             headers.add(contentsOf: additionalHeaders)
             // add websocket extensions to headers
-            headers.add(contentsOf: self.configuration.extensions.map { (name: "Sec-WebSocket-Extensions", value: $0.clientRequestHeader()) })
+            headers.add(contentsOf: self.configuration.extensions.compactMap {
+                let requestHeaders = $0.clientRequestHeader()
+                return requestHeaders != "" ? ("Sec-WebSocket-Extensions", requestHeaders) : nil
+            })
 
             let requestHead = HTTPRequestHead(
                 version: .http1_1,
