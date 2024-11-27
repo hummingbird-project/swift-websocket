@@ -60,11 +60,12 @@ struct WebSocketStateMachine {
         // read close code and close reason
         let closeCode = frameData.readWebSocketErrorCode()
         let hasReason = frameData.readableBytes > 0
-        let reason: String? = if hasReason {
-            String(buffer: frameData, validateUTF8: validateUTF8)
-        } else {
-            nil
-        }
+        let reason: String? =
+            if hasReason {
+                String(buffer: frameData, validateUTF8: validateUTF8)
+            } else {
+                nil
+            }
 
         switch self.state {
         case .open:
@@ -73,18 +74,19 @@ struct WebSocketStateMachine {
                 return .sendClose(.protocolError)
             }
             self.state = .closed(closeCode.map { .init(closeCode: $0, reason: reason) })
-            let code: WebSocketErrorCode = if dataSize == 0 || closeCode != nil {
-                // codes 3000 - 3999 are reserved for use by libraries, frameworks
-                // codes 4000 - 4999 are reserved for private use
-                // both of these are considered valid.
-                if case .unknown(let code) = closeCode, code < 3000 || code > 4999 {
-                    .protocolError
+            let code: WebSocketErrorCode =
+                if dataSize == 0 || closeCode != nil {
+                    // codes 3000 - 3999 are reserved for use by libraries, frameworks
+                    // codes 4000 - 4999 are reserved for private use
+                    // both of these are considered valid.
+                    if case .unknown(let code) = closeCode, code < 3000 || code > 4999 {
+                        .protocolError
+                    } else {
+                        .normalClosure
+                    }
                 } else {
-                    .normalClosure
+                    .protocolError
                 }
-            } else {
-                .protocolError
-            }
             return .sendClose(code)
         case .closing:
             self.state = .closed(closeCode.map { .init(closeCode: $0, reason: reason) })

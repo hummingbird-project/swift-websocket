@@ -39,10 +39,10 @@ public struct WebSocketDataFrame: Equatable, Sendable, CustomStringConvertible, 
     }
 
     public var description: String {
-        return "\(self.opcode): \(self.data.description), finished: \(self.fin)"
+        "\(self.opcode): \(self.data.description), finished: \(self.fin)"
     }
 
     public var debugDescription: String {
-        return "\(self.opcode): \(self.data.debugDescription), finished: \(self.fin)"
+        "\(self.opcode): \(self.data.debugDescription), finished: \(self.fin)"
     }
 }

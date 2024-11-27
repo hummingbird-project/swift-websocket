@@ -115,7 +115,13 @@ public struct WebSocketCloseFrame: Sendable {
             let rt = try await asyncChannel.executeThenClose { inbound, outbound in
                 try await withTaskCancellationHandler {
                     try await withThrowingTaskGroup(of: WebSocketCloseFrame.self) { group in
-                        let webSocketHandler = Self(channel: asyncChannel.channel, outbound: outbound, type: type, configuration: configuration, context: context)
+                        let webSocketHandler = Self(
+                            channel: asyncChannel.channel,
+                            outbound: outbound,
+                            type: type,
+                            configuration: configuration,
+                            context: context
+                        )
                         if case .enabled = configuration.autoPing.value {
                             /// Add task sending ping frames every so often and verifying a pong frame was sent back
                             group.addTask {
@@ -123,7 +129,13 @@ public struct WebSocketCloseFrame: Sendable {
                                 return .init(closeCode: .goingAway, reason: "Ping timeout")
                             }
                         }
-                        let rt = try await webSocketHandler.handle(type: type, inbound: inbound, outbound: outbound, handler: handler, context: context)
+                        let rt = try await webSocketHandler.handle(
+                            type: type,
+                            inbound: inbound,
+                            outbound: outbound,
+                            handler: handler,
+                            context: context
+                        )
                         group.cancelAll()
                         return rt
                     }
@@ -327,7 +339,7 @@ extension WebSocketErrorCode {
         case NIOWebSocketError.invalidFrameLength:
             self = .messageTooLarge
         case NIOWebSocketError.fragmentedControlFrame,
-             NIOWebSocketError.multiByteControlFrameLength:
+            NIOWebSocketError.multiByteControlFrameLength:
             self = .protocolError
         case WebSocketHandler.InternalError.close(let error):
             self = error

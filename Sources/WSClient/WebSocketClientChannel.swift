@@ -68,10 +68,12 @@ struct WebSocketClientChannel: ClientConnectionChannel {
             let additionalHeaders = HTTPHeaders(self.configuration.additionalHeaders)
             headers.add(contentsOf: additionalHeaders)
             // add websocket extensions to headers
-            headers.add(contentsOf: self.configuration.extensions.compactMap {
-                let requestHeaders = $0.clientRequestHeader()
-                return requestHeaders != "" ? ("Sec-WebSocket-Extensions", requestHeaders) : nil
-            })
+            headers.add(
+                contentsOf: self.configuration.extensions.compactMap {
+                    let requestHeaders = $0.clientRequestHeader()
+                    return requestHeaders != "" ? ("Sec-WebSocket-Extensions", requestHeaders) : nil
+                }
+            )
 
             let requestHead = HTTPRequestHead(
                 version: .http1_1,

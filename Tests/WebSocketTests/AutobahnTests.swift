@@ -100,7 +100,10 @@ final class AutobahnTests: XCTestCase {
                 XCTAssert(status.behavior == "OK" || status.behavior == "INFORMATIONAL" || status.behavior == "NON-STRICT")
             }
 
-            try await WebSocketClient.connect(url: .init("ws://\(self.autobahnServer):9001/updateReports?agent=HB"), logger: logger) { inbound, _, _ in
+            try await WebSocketClient.connect(
+                url: .init("ws://\(self.autobahnServer):9001/updateReports?agent=HB"),
+                logger: logger
+            ) { inbound, _, _ in
                 for try await _ in inbound {}
             }
         } catch let error as NIOConnectionError {
@@ -171,27 +174,81 @@ final class AutobahnTests: XCTestCase {
 
     func test_13_CompressionDifferentParameters() async throws {
         if !self.runAllTests {
-            try await self.autobahnTests(cases: .init([392]), extensions: [.perMessageDeflate(noContextTakeover: false, maxDecompressedFrameSize: 131_072)])
-            try await self.autobahnTests(cases: .init([427]), extensions: [.perMessageDeflate(noContextTakeover: true, maxDecompressedFrameSize: 131_072)])
-            try await self.autobahnTests(cases: .init([440]), extensions: [.perMessageDeflate(maxWindow: 9, noContextTakeover: false, maxDecompressedFrameSize: 131_072)])
-            try await self.autobahnTests(cases: .init([451]), extensions: [.perMessageDeflate(maxWindow: 15, noContextTakeover: false, maxDecompressedFrameSize: 131_072)])
-            try await self.autobahnTests(cases: .init([473]), extensions: [.perMessageDeflate(maxWindow: 9, noContextTakeover: true, maxDecompressedFrameSize: 131_072)])
-            try await self.autobahnTests(cases: .init([498]), extensions: [.perMessageDeflate(maxWindow: 15, noContextTakeover: true, maxDecompressedFrameSize: 131_072)])
+            try await self.autobahnTests(
+                cases: .init([392]),
+                extensions: [.perMessageDeflate(noContextTakeover: false, maxDecompressedFrameSize: 131_072)]
+            )
+            try await self.autobahnTests(
+                cases: .init([427]),
+                extensions: [.perMessageDeflate(noContextTakeover: true, maxDecompressedFrameSize: 131_072)]
+            )
+            try await self.autobahnTests(
+                cases: .init([440]),
+                extensions: [.perMessageDeflate(maxWindow: 9, noContextTakeover: false, maxDecompressedFrameSize: 131_072)]
+            )
+            try await self.autobahnTests(
+                cases: .init([451]),
+                extensions: [.perMessageDeflate(maxWindow: 15, noContextTakeover: false, maxDecompressedFrameSize: 131_072)]
+            )
+            try await self.autobahnTests(
+                cases: .init([473]),
+                extensions: [.perMessageDeflate(maxWindow: 9, noContextTakeover: true, maxDecompressedFrameSize: 131_072)]
+            )
+            try await self.autobahnTests(
+                cases: .init([498]),
+                extensions: [.perMessageDeflate(maxWindow: 15, noContextTakeover: true, maxDecompressedFrameSize: 131_072)]
+            )
             // case 13.7.x are repeated with different setups
-            try await self.autobahnTests(cases: .init([509]), extensions: [.perMessageDeflate(maxWindow: 9, noContextTakeover: true, maxDecompressedFrameSize: 131_072)])
-            try await self.autobahnTests(cases: .init([517]), extensions: [.perMessageDeflate(noContextTakeover: true, maxDecompressedFrameSize: 131_072)])
-            try await self.autobahnTests(cases: .init([504]), extensions: [.perMessageDeflate(noContextTakeover: false, maxDecompressedFrameSize: 131_072)])
+            try await self.autobahnTests(
+                cases: .init([509]),
+                extensions: [.perMessageDeflate(maxWindow: 9, noContextTakeover: true, maxDecompressedFrameSize: 131_072)]
+            )
+            try await self.autobahnTests(
+                cases: .init([517]),
+                extensions: [.perMessageDeflate(noContextTakeover: true, maxDecompressedFrameSize: 131_072)]
+            )
+            try await self.autobahnTests(
+                cases: .init([504]),
+                extensions: [.perMessageDeflate(noContextTakeover: false, maxDecompressedFrameSize: 131_072)]
+            )
         } else {
-            try await self.autobahnTests(cases: .init(392..<410), extensions: [.perMessageDeflate(noContextTakeover: false, maxDecompressedFrameSize: 131_072)])
-            try await self.autobahnTests(cases: .init(410..<428), extensions: [.perMessageDeflate(noContextTakeover: true, maxDecompressedFrameSize: 131_072)])
-            try await self.autobahnTests(cases: .init(428..<446), extensions: [.perMessageDeflate(maxWindow: 9, noContextTakeover: false, maxDecompressedFrameSize: 131_072)])
-            try await self.autobahnTests(cases: .init(446..<464), extensions: [.perMessageDeflate(maxWindow: 15, noContextTakeover: false, maxDecompressedFrameSize: 131_072)])
-            try await self.autobahnTests(cases: .init(464..<482), extensions: [.perMessageDeflate(maxWindow: 9, noContextTakeover: true, maxDecompressedFrameSize: 131_072)])
-            try await self.autobahnTests(cases: .init(482..<500), extensions: [.perMessageDeflate(maxWindow: 15, noContextTakeover: true, maxDecompressedFrameSize: 131_072)])
+            try await self.autobahnTests(
+                cases: .init(392..<410),
+                extensions: [.perMessageDeflate(noContextTakeover: false, maxDecompressedFrameSize: 131_072)]
+            )
+            try await self.autobahnTests(
+                cases: .init(410..<428),
+                extensions: [.perMessageDeflate(noContextTakeover: true, maxDecompressedFrameSize: 131_072)]
+            )
+            try await self.autobahnTests(
+                cases: .init(428..<446),
+                extensions: [.perMessageDeflate(maxWindow: 9, noContextTakeover: false, maxDecompressedFrameSize: 131_072)]
+            )
+            try await self.autobahnTests(
+                cases: .init(446..<464),
+                extensions: [.perMessageDeflate(maxWindow: 15, noContextTakeover: false, maxDecompressedFrameSize: 131_072)]
+            )
+            try await self.autobahnTests(
+                cases: .init(464..<482),
+                extensions: [.perMessageDeflate(maxWindow: 9, noContextTakeover: true, maxDecompressedFrameSize: 131_072)]
+            )
+            try await self.autobahnTests(
+                cases: .init(482..<500),
+                extensions: [.perMessageDeflate(maxWindow: 15, noContextTakeover: true, maxDecompressedFrameSize: 131_072)]
+            )
             // case 13.7.x are repeated with different setups
-            try await self.autobahnTests(cases: .init(500..<518), extensions: [.perMessageDeflate(maxWindow: 9, noContextTakeover: true, maxDecompressedFrameSize: 131_072)])
-            try await self.autobahnTests(cases: .init(500..<518), extensions: [.perMessageDeflate(noContextTakeover: true, maxDecompressedFrameSize: 131_072)])
-            try await self.autobahnTests(cases: .init(500..<518), extensions: [.perMessageDeflate(noContextTakeover: false, maxDecompressedFrameSize: 131_072)])
+            try await self.autobahnTests(
+                cases: .init(500..<518),
+                extensions: [.perMessageDeflate(maxWindow: 9, noContextTakeover: true, maxDecompressedFrameSize: 131_072)]
+            )
+            try await self.autobahnTests(
+                cases: .init(500..<518),
+                extensions: [.perMessageDeflate(noContextTakeover: true, maxDecompressedFrameSize: 131_072)]
+            )
+            try await self.autobahnTests(
+                cases: .init(500..<518),
+                extensions: [.perMessageDeflate(noContextTakeover: false, maxDecompressedFrameSize: 131_072)]
+            )
         }
     }
 }

@@ -105,16 +105,18 @@ struct PerMessageDeflateExtensionBuilder: WebSocketExtensionBuilder {
         let clientNoContextTakeoverParam = response.parameters["client_no_context_takeover"] != nil
         let serverMaxWindowParam = response.parameters["server_max_window_bits"]?.integer
         let serverNoContextTakeoverParam = response.parameters["server_no_context_takeover"] != nil
-        return try PerMessageDeflateExtension(configuration: .init(
-            receiveMaxWindow: serverMaxWindowParam,
-            receiveNoContextTakeover: serverNoContextTakeoverParam,
-            sendMaxWindow: clientMaxWindowParam,
-            sendNoContextTakeover: clientNoContextTakeoverParam,
-            compressionLevel: self.compressionLevel,
-            memoryLevel: self.memoryLevel,
-            maxDecompressedFrameSize: self.maxDecompressedFrameSize,
-            minFrameSizeToCompress: self.minFrameSizeToCompress
-        ))
+        return try PerMessageDeflateExtension(
+            configuration: .init(
+                receiveMaxWindow: serverMaxWindowParam,
+                receiveNoContextTakeover: serverNoContextTakeoverParam,
+                sendMaxWindow: clientMaxWindowParam,
+                sendNoContextTakeover: clientNoContextTakeoverParam,
+                compressionLevel: self.compressionLevel,
+                memoryLevel: self.memoryLevel,
+                maxDecompressedFrameSize: self.maxDecompressedFrameSize,
+                minFrameSizeToCompress: self.minFrameSizeToCompress
+            )
+        )
     }
 
     private func responseConfiguration(to request: WebSocketExtensionHTTPParameters) -> PerMessageDeflateExtension.Configuration {
@@ -123,16 +125,15 @@ struct PerMessageDeflateExtensionBuilder: WebSocketExtensionBuilder {
         let requestClientMaxWindow = request.parameters["client_max_window_bits"]
         let requestClientNoContextTakeover = request.parameters["client_no_context_takeover"] != nil
 
-        let receiveMaxWindow: Int?
-            // calculate client max window. If parameter doesn't exist then server cannot set it, if it does
-            // exist then the value should be set to minimum of both values, or the value of the other if
-            // one is nil
-            = if let requestClientMaxWindow
-        {
-            optionalMin(requestClientMaxWindow.integer, self.clientMaxWindow)
-        } else {
-            nil
-        }
+        // calculate client max window. If parameter doesn't exist then server cannot set it, if it does
+        // exist then the value should be set to minimum of both values, or the value of the other if
+        // one is nil
+        let receiveMaxWindow: Int? =
+            if let requestClientMaxWindow {
+                optionalMin(requestClientMaxWindow.integer, self.clientMaxWindow)
+            } else {
+                nil
+            }
 
         return PerMessageDeflateExtension.Configuration(
             receiveMaxWindow: receiveMaxWindow,
@@ -280,7 +281,7 @@ struct PerMessageDeflateExtension: WebSocketExtension {
     func shutdown() async {}
 
     func processReceivedFrame(_ frame: WebSocketFrame, context: WebSocketExtensionContext) async throws -> WebSocketFrame {
-        return try await self.decompressor.decompress(
+        try await self.decompressor.decompress(
             frame,
             maxSize: self.configuration.maxDecompressedFrameSize,
             resetStream: self.configuration.receiveNoContextTakeover,
@@ -310,7 +311,7 @@ extension WebSocketExtensionFactory {
         maxDecompressedFrameSize: Int = 1 << 14,
         minFrameSizeToCompress: Int = 256
     ) -> WebSocketExtensionFactory {
-        return .init {
+        .init {
             PerMessageDeflateExtensionBuilder(
                 clientMaxWindow: maxWindow,
                 clientNoContextTakeover: noContextTakeover,
@@ -346,7 +347,7 @@ extension WebSocketExtensionFactory {
         maxDecompressedFrameSize: Int = 1 << 14,
         minFrameSizeToCompress: Int = 256
     ) -> WebSocketExtensionFactory {
-        return .init {
+        .init {
             PerMessageDeflateExtensionBuilder(
                 clientMaxWindow: clientMaxWindow,
                 clientNoContextTakeover: clientNoContextTakeover,

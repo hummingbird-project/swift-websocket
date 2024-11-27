@@ -14,9 +14,10 @@
 
 import HTTPTypes
 import NIOWebSocket
+import XCTest
+
 @testable import WSCompression
 @testable import WSCore
-import XCTest
 
 final class WebSocketExtensionNegotiationTests: XCTestCase {
     func testExtensionHeaderParsing() {
@@ -36,7 +37,7 @@ final class WebSocketExtensionNegotiationTests: XCTestCase {
 
     func testDeflateServerResponse() {
         let requestHeaders: [WebSocketExtensionHTTPParameters] = [
-            .init("permessage-deflate", parameters: ["client_max_window_bits": .value("10")]),
+            .init("permessage-deflate", parameters: ["client_max_window_bits": .value("10")])
         ]
         let ext = PerMessageDeflateExtensionBuilder(clientNoContextTakeover: true, serverNoContextTakeover: true)
         let serverResponse = ext.serverResponseHeader(to: requestHeaders)
@@ -48,7 +49,7 @@ final class WebSocketExtensionNegotiationTests: XCTestCase {
 
     func testDeflateServerResponseClientMaxWindowBits() {
         let requestHeaders: [WebSocketExtensionHTTPParameters] = [
-            .init("permessage-deflate", parameters: ["client_max_window_bits": .null]),
+            .init("permessage-deflate", parameters: ["client_max_window_bits": .null])
         ]
         let ext1 = PerMessageDeflateExtensionBuilder(serverNoContextTakeover: true)
         let serverResponse1 = ext1.serverResponseHeader(to: requestHeaders)
@@ -90,18 +91,20 @@ final class WebSocketExtensionNegotiationTests: XCTestCase {
             var name = "my-extension"
 
             func processReceivedFrame(_ frame: WebSocketFrame, context: WebSocketExtensionContext) async throws -> WebSocketFrame {
-                return frame
+                frame
             }
 
             func processFrameToSend(_ frame: WebSocketFrame, context: WebSocketExtensionContext) async throws -> WebSocketFrame {
-                return frame
+                frame
             }
 
             func shutdown() async {}
         }
-        let clientExtensionBuilders: [WebSocketExtensionBuilder] = [WebSocketExtensionFactory.nonNegotiatedExtension {
-            MyExtension()
-        }.build()]
+        let clientExtensionBuilders: [WebSocketExtensionBuilder] = [
+            WebSocketExtensionFactory.nonNegotiatedExtension {
+                MyExtension()
+            }.build()
+        ]
         let clientExtensions = try clientExtensionBuilders.buildClientExtensions(from: [:])
         XCTAssertEqual(clientExtensions.count, 1)
         let myExtension = try XCTUnwrap(clientExtensions.first)
@@ -113,11 +116,11 @@ final class WebSocketExtensionNegotiationTests: XCTestCase {
             var name = "my-extension"
 
             func processReceivedFrame(_ frame: WebSocketFrame, context: WebSocketExtensionContext) async throws -> WebSocketFrame {
-                return frame
+                frame
             }
 
             func processFrameToSend(_ frame: WebSocketFrame, context: WebSocketExtensionContext) async throws -> WebSocketFrame {
-                return frame
+                frame
             }
 
             func shutdown() async {}

@@ -21,27 +21,27 @@ struct URI: Sendable, CustomStringConvertible, ExpressibleByStringLiteral {
             self.rawValue = rawValue
         }
 
-        static var http: Self { return .init(rawValue: "http") }
-        static var https: Self { return .init(rawValue: "https") }
-        static var unix: Self { return .init(rawValue: "unix") }
-        static var http_unix: Self { return .init(rawValue: "http_unix") }
-        static var https_unix: Self { return .init(rawValue: "https_unix") }
-        static var ws: Self { return .init(rawValue: "ws") }
-        static var wss: Self { return .init(rawValue: "wss") }
+        static var http: Self { .init(rawValue: "http") }
+        static var https: Self { .init(rawValue: "https") }
+        static var unix: Self { .init(rawValue: "unix") }
+        static var http_unix: Self { .init(rawValue: "http_unix") }
+        static var https_unix: Self { .init(rawValue: "https_unix") }
+        static var ws: Self { .init(rawValue: "ws") }
+        static var wss: Self { .init(rawValue: "wss") }
     }
 
     let string: String
 
     /// URL scheme
-    var scheme: Scheme? { return self._scheme.map { .init(rawValue: $0.string) } }
+    var scheme: Scheme? { self._scheme.map { .init(rawValue: $0.string) } }
     /// URL host
-    var host: String? { return self._host.map(\.string) }
+    var host: String? { self._host.map(\.string) }
     /// URL port
-    var port: Int? { return self._port.map { Int($0.string) } ?? nil }
+    var port: Int? { self._port.map { Int($0.string) } ?? nil }
     /// URL path
-    var path: String { return self._path.map(\.string) ?? "/" }
+    var path: String { self._path.map(\.string) ?? "/" }
     /// URL query
-    var query: String? { return self._query.map { String($0.string) }}
+    var query: String? { self._query.map { String($0.string) } }
 
     private let _scheme: Parser?
     private let _host: Parser?
