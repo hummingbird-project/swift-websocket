@@ -24,32 +24,47 @@ let package = Package(
         .package(url: "https://github.com/swift-server/swift-service-lifecycle", from: "2.0.0"),
     ],
     targets: [
-        .target(name: "WSClient", dependencies: [
-            .byName(name: "WSCore"),
-            .product(name: "HTTPTypes", package: "swift-http-types"),
-            .product(name: "Logging", package: "swift-log"),
-            .product(name: "NIOCore", package: "swift-nio"),
-            .product(name: "NIOHTTPTypesHTTP1", package: "swift-nio-extras"),
-            .product(name: "NIOPosix", package: "swift-nio"),
-            .product(name: "NIOSSL", package: "swift-nio-ssl"),
-            .product(name: "NIOTransportServices", package: "swift-nio-transport-services"),
-            .product(name: "NIOWebSocket", package: "swift-nio"),
-        ], swiftSettings: swiftSettings),
-        .target(name: "WSCore", dependencies: [
-            .product(name: "HTTPTypes", package: "swift-http-types"),
-            .product(name: "NIOCore", package: "swift-nio"),
-            .product(name: "NIOWebSocket", package: "swift-nio"),
-            .product(name: "ServiceLifecycle", package: "swift-service-lifecycle"),
-        ], swiftSettings: swiftSettings),
-        .target(name: "WSCompression", dependencies: [
-            .byName(name: "WSCore"),
-            .product(name: "CompressNIO", package: "compress-nio"),
-        ], swiftSettings: swiftSettings),
+        .target(
+            name: "WSClient",
+            dependencies: [
+                .byName(name: "WSCore"),
+                .product(name: "HTTPTypes", package: "swift-http-types"),
+                .product(name: "Logging", package: "swift-log"),
+                .product(name: "NIOCore", package: "swift-nio"),
+                .product(name: "NIOHTTPTypesHTTP1", package: "swift-nio-extras"),
+                .product(name: "NIOPosix", package: "swift-nio"),
+                .product(name: "NIOSSL", package: "swift-nio-ssl"),
+                .product(name: "NIOTransportServices", package: "swift-nio-transport-services"),
+                .product(name: "NIOWebSocket", package: "swift-nio"),
+            ],
+            swiftSettings: swiftSettings
+        ),
+        .target(
+            name: "WSCore",
+            dependencies: [
+                .product(name: "HTTPTypes", package: "swift-http-types"),
+                .product(name: "NIOCore", package: "swift-nio"),
+                .product(name: "NIOWebSocket", package: "swift-nio"),
+                .product(name: "ServiceLifecycle", package: "swift-service-lifecycle"),
+            ],
+            swiftSettings: swiftSettings
+        ),
+        .target(
+            name: "WSCompression",
+            dependencies: [
+                .byName(name: "WSCore"),
+                .product(name: "CompressNIO", package: "compress-nio"),
+            ],
+            swiftSettings: swiftSettings
+        ),
 
-        .testTarget(name: "WebSocketTests", dependencies: [
-            .byName(name: "WSClient"),
-            .byName(name: "WSCompression"),
-        ]),
+        .testTarget(
+            name: "WebSocketTests",
+            dependencies: [
+                .byName(name: "WSClient"),
+                .byName(name: "WSCompression"),
+            ]
+        ),
     ],
     swiftLanguageVersions: [.v5, .version("6")]
 )

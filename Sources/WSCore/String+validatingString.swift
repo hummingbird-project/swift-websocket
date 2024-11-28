@@ -29,6 +29,6 @@ extension String {
         }
         #else
         self = .init(buffer: buffer)
-        #endif // compiler(>=6)
+        #endif  // compiler(>=6)
     }
 }

@@ -51,12 +51,12 @@ struct Parser: Sendable {
 
     /// Return contents of parser as a string
     var count: Int {
-        return self.range.count
+        self.range.count
     }
 
     /// Return contents of parser as a string
     var string: String {
-        return makeString(self.buffer[self.range])
+        makeString(self.buffer[self.range])
     }
 
     private var buffer: [UInt8]
@@ -74,12 +74,12 @@ extension Parser {
         self.range = range
 
         precondition(range.startIndex >= 0 && range.endIndex <= self.buffer.endIndex)
-        precondition(range.startIndex == self.buffer.endIndex || self.buffer[range.startIndex] & 0xC0 != 0x80) // check we arent in the middle of a UTF8 character
+        precondition(range.startIndex == self.buffer.endIndex || self.buffer[range.startIndex] & 0xC0 != 0x80)  // check we arent in the middle of a UTF8 character
     }
 
     /// initialise a parser that parses a section of the buffer attached to this parser
     func subParser(_ range: Range<Int>) -> Parser {
-        return Parser(self, range: range)
+        Parser(self, range: range)
     }
 }
 
@@ -99,7 +99,10 @@ extension Parser {
     mutating func read(_ char: Unicode.Scalar) throws -> Bool {
         let initialIndex = self.index
         let c = try character()
-        guard c == char else { self.index = initialIndex; return false }
+        guard c == char else {
+            self.index = initialIndex
+            return false
+        }
         return true
     }
 
@@ -110,7 +113,10 @@ extension Parser {
     mutating func read(_ characterSet: Set<Unicode.Scalar>) throws -> Bool {
         let initialIndex = self.index
         let c = try character()
-        guard characterSet.contains(c) else { self.index = initialIndex; return false }
+        guard characterSet.contains(c) else {
+            self.index = initialIndex
+            return false
+        }
         return true
     }
 
@@ -122,7 +128,10 @@ extension Parser {
         let initialIndex = self.index
         guard string.count > 0 else { throw Error.emptyString }
         let subString = try read(count: string.count)
-        guard subString.string == string else { self.index = initialIndex; return false }
+        guard subString.string == string else {
+            self.index = initialIndex
+            return false
+        }
         return true
     }
 
@@ -273,7 +282,7 @@ extension Parser {
     @discardableResult mutating func read(while: Unicode.Scalar) -> Int {
         var count = 0
         while !self.reachedEnd(),
-              unsafeCurrent() == `while`
+            unsafeCurrent() == `while`
         {
             unsafeAdvance()
             count += 1
@@ -287,7 +296,7 @@ extension Parser {
     @discardableResult mutating func read(while characterSet: Set<Unicode.Scalar>) -> Parser {
         let startIndex = self.index
         while !self.reachedEnd(),
-              characterSet.contains(unsafeCurrent())
+            characterSet.contains(unsafeCurrent())
         {
             unsafeAdvance()
         }
@@ -300,7 +309,7 @@ extension Parser {
     @discardableResult mutating func read(while: (Unicode.Scalar) -> Bool) -> Parser {
         let startIndex = self.index
         while !self.reachedEnd(),
-              `while`(unsafeCurrent())
+            `while`(unsafeCurrent())
         {
             unsafeAdvance()
         }
@@ -313,7 +322,7 @@ extension Parser {
     @discardableResult mutating func read(while keyPath: KeyPath<Unicode.Scalar, Bool>) -> Parser {
         let startIndex = self.index
         while !self.reachedEnd(),
-              unsafeCurrent()[keyPath: keyPath]
+            unsafeCurrent()[keyPath: keyPath]
         {
             unsafeAdvance()
         }
@@ -342,7 +351,7 @@ extension Parser {
     /// Return whether we have reached the end of the buffer
     /// - Returns: Have we reached the end
     func reachedEnd() -> Bool {
-        return self.index == self.range.endIndex
+        self.index == self.range.endIndex
     }
 }
 
@@ -422,7 +431,7 @@ extension Parser: Sequence {
     public typealias Element = Unicode.Scalar
 
     public func makeIterator() -> Iterator {
-        return Iterator(self)
+        Iterator(self)
     }
 
     public struct Iterator: IteratorProtocol {
@@ -442,22 +451,22 @@ extension Parser: Sequence {
 }
 
 // internal versions without checks
-private extension Parser {
-    func unsafeCurrent() -> Unicode.Scalar {
-        return decodeUTF8Character(at: self.index).0
+extension Parser {
+    fileprivate func unsafeCurrent() -> Unicode.Scalar {
+        decodeUTF8Character(at: self.index).0
     }
 
-    mutating func unsafeCurrentAndAdvance() -> Unicode.Scalar {
+    fileprivate mutating func unsafeCurrentAndAdvance() -> Unicode.Scalar {
         let (unicodeScalar, index) = decodeUTF8Character(at: self.index)
         self.index = index
         return unicodeScalar
     }
 
-    mutating func _setPosition(_ index: Int) {
+    fileprivate mutating func _setPosition(_ index: Int) {
         self.index = index
     }
 
-    func makeString<Bytes: Collection>(_ bytes: Bytes) -> String where Bytes.Element == UInt8, Bytes.Index == Int {
+    fileprivate func makeString<Bytes: Collection>(_ bytes: Bytes) -> String where Bytes.Element == UInt8, Bytes.Index == Int {
         if let string = bytes.withContiguousStorageIfAvailable({ String(decoding: $0, as: Unicode.UTF8.self) }) {
             return string
         } else {
@@ -624,7 +633,7 @@ extension Parser {
         do {
             if #available(macOS 11, macCatalyst 14.0, iOS 14.0, tvOS 14.0, *) {
                 return try String(unsafeUninitializedCapacity: range.endIndex - index) { bytes -> Int in
-                    return try _percentDecode(self.buffer[self.index..<range.endIndex], bytes)
+                    try _percentDecode(self.buffer[self.index..<range.endIndex], bytes)
                 }
             } else {
                 let newBuffer = try [UInt8](unsafeUninitializedCapacity: self.range.endIndex - self.index) { bytes, count in
@@ -640,7 +649,7 @@ extension Parser {
 
 extension Unicode.Scalar {
     var isWhitespace: Bool {
-        return properties.isWhitespace
+        properties.isWhitespace
     }
 
     var isNewline: Bool {

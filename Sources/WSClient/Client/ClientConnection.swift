@@ -15,11 +15,12 @@
 import Logging
 import NIOCore
 import NIOPosix
+import NIOWebSocket
+
 #if canImport(Network)
 import Network
 import NIOTransportServices
 #endif
-import NIOWebSocket
 
 /// A generic client connection to a server.
 ///
@@ -104,7 +105,9 @@ public struct ClientConnection<ClientChannel: ClientConnectionChannel>: Sendable
             bootstrap = tsBootstrap
         } else {
             #if os(iOS) || os(tvOS)
-            self.logger.warning("Running BSD sockets on iOS or tvOS is not recommended. Please use NIOTSEventLoopGroup, to run with the Network framework")
+            self.logger.warning(
+                "Running BSD sockets on iOS or tvOS is not recommended. Please use NIOTSEventLoopGroup, to run with the Network framework"
+            )
             #endif
             bootstrap = self.createSocketsBootstrap()
         }
@@ -117,13 +120,15 @@ public struct ClientConnection<ClientChannel: ClientConnectionChannel>: Sendable
         do {
             switch address.value {
             case .hostname(let host, let port):
-                result = try await bootstrap
+                result =
+                    try await bootstrap
                     .connect(host: host, port: port) { channel in
                         clientChannel.setup(channel: channel, logger: self.logger)
                     }
                 self.logger.debug("Client connnected to \(host):\(port)")
             case .unixDomainSocket(let path):
-                result = try await bootstrap
+                result =
+                    try await bootstrap
                     .connect(unixDomainSocketPath: path) { channel in
                         clientChannel.setup(channel: channel, logger: self.logger)
                     }
@@ -137,15 +142,16 @@ public struct ClientConnection<ClientChannel: ClientConnectionChannel>: Sendable
 
     /// create a BSD sockets based bootstrap
     private func createSocketsBootstrap() -> ClientBootstrap {
-        return ClientBootstrap(group: self.eventLoopGroup)
+        ClientBootstrap(group: self.eventLoopGroup)
             .channelOption(ChannelOptions.allowRemoteHalfClosure, value: true)
     }
 
     #if canImport(Network)
     /// create a NIOTransportServices bootstrap using Network.framework
     private func createTSBootstrap() -> NIOTSConnectionBootstrap? {
-        guard let bootstrap = NIOTSConnectionBootstrap(validatingGroup: self.eventLoopGroup)?
-            .channelOption(ChannelOptions.allowRemoteHalfClosure, value: true)
+        guard
+            let bootstrap = NIOTSConnectionBootstrap(validatingGroup: self.eventLoopGroup)?
+                .channelOption(ChannelOptions.allowRemoteHalfClosure, value: true)
         else {
             return nil
         }

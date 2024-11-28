@@ -100,7 +100,7 @@ extension WebSocketNonNegotiableExtensionBuilder {
     public func clientExtension(from: WebSocketExtensionHTTPParameters) throws -> (any WebSocketExtension)? { self.build() }
 }
 
-extension Array<any WebSocketExtensionBuilder> {
+extension [any WebSocketExtensionBuilder] {
     ///  Build client extensions from response from WebSocket server
     /// - Parameter responseHeaders: Server response headers
     /// - Returns: Array of client extensions to enable
@@ -144,7 +144,7 @@ public struct WebSocketExtensionFactory: Sendable {
     /// - Parameter build: closure creating extension
     /// - Returns: WebSocketExtensionFactory
     public static func nonNegotiatedExtension(_ build: @escaping @Sendable () -> some WebSocketExtension) -> Self {
-        return .init {
+        .init {
             WebSocketNonNegotiableExtensionBuilder(build)
         }
     }
