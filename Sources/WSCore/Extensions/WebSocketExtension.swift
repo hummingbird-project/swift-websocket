@@ -35,6 +35,13 @@ public protocol WebSocketExtension: Sendable {
     func processReceivedFrame(_ frame: WebSocketFrame, context: WebSocketExtensionContext) async throws -> WebSocketFrame
     /// Process frame about to be sent to websocket
     func processFrameToSend(_ frame: WebSocketFrame, context: WebSocketExtensionContext) async throws -> WebSocketFrame
+    /// Reserved bits extension uses
+    var reservedBits: WebSocketFrame.ReservedBits { get }
     /// shutdown extension
     func shutdown() async
+}
+
+extension WebSocketExtension {
+    /// Reserved bits extension uses (default is none)
+    public var reservedBits: WebSocketFrame.ReservedBits { .init() }
 }

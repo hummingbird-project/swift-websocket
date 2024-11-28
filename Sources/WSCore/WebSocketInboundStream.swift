@@ -67,6 +67,9 @@ public final class WebSocketInboundStream: AsyncSequence, Sendable {
                     case .pong:
                         try await self.handler.onPong(frame)
                     case .text, .binary, .continuation:
+                        guard self.handler.configuration.reservedBits.contains(frame.reservedBits) else {
+                            throw WebSocketHandler.InternalError.close(.protocolError)
+                        }
                         // apply extensions
                         var frame = frame
                         for ext in self.handler.configuration.extensions.reversed() {
