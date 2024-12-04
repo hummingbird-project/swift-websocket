@@ -71,11 +71,16 @@ public struct WebSocketCloseFrame: Sendable {
         let extensions: [any WebSocketExtension]
         let autoPing: AutoPingSetup
         let validateUTF8: Bool
+        let reservedBits: WebSocketFrame.ReservedBits
 
         @_spi(WSInternal) public init(extensions: [any WebSocketExtension], autoPing: AutoPingSetup, validateUTF8: Bool) {
             self.extensions = extensions
             self.autoPing = autoPing
             self.validateUTF8 = validateUTF8
+            // store reserved bits used by this handler
+            self.reservedBits = extensions.reduce(.init()) { partialResult, `extension` in
+                partialResult.union(`extension`.reservedBits)
+            }
         }
     }
 
@@ -301,6 +306,16 @@ public struct WebSocketCloseFrame: Sendable {
     }
 
     func receivedClose(_ frame: WebSocketFrame) async throws {
+        guard frame.reservedBits.isEmpty else {
+            try await self.sendClose(code: .protocolError, reason: nil)
+            // Only server should initiate a connection close. Clients should wait for the
+            // server to close the connection when it receives the WebSocket close packet
+            // See https://www.rfc-editor.org/rfc/rfc6455#section-7.1.1
+            if self.type == .server {
+                self.outbound.finish()
+            }
+            return
+        }
         switch self.stateMachine.receivedClose(frameData: frame.unmaskedData, validateUTF8: self.configuration.validateUTF8) {
         case .sendClose(let errorCode):
             try await self.sendClose(code: errorCode, reason: nil)

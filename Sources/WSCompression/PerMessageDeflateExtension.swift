@@ -296,6 +296,9 @@ struct PerMessageDeflateExtension: WebSocketExtension {
         }
         return frame
     }
+
+    /// Reserved bits extension uses
+    var reservedBits: WebSocketFrame.ReservedBits { .rsv1 }
 }
 
 extension WebSocketExtensionFactory {
