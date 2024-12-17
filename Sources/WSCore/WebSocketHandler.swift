@@ -118,7 +118,10 @@ public struct WebSocketCloseFrame: Sendable {
         }
         do {
             let rt = try await asyncChannel.executeThenClose { inbound, outbound in
-                try await withTaskCancellationHandler {
+                defer {
+                    context.logger.debug("Closing WebSocket")
+                }
+                return try await withTaskCancellationHandler {
                     try await withThrowingTaskGroup(of: WebSocketCloseFrame.self) { group in
                         let webSocketHandler = Self(
                             channel: asyncChannel.channel,
@@ -191,7 +194,11 @@ public struct WebSocketCloseFrame: Sendable {
                     while let frame = try await inboundIterator.next() {
                         if case .connectionClose = frame.opcode {
                             try await self.receivedClose(frame)
-                            break
+                            // only the server can close the connection, so clients
+                            // should continue reading from inbound until it is closed
+                            if type == .server {
+                                break
+                            }
                         }
                     }
                 }
