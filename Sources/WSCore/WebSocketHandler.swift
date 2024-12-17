@@ -72,10 +72,17 @@ public struct WebSocketCloseFrame: Sendable {
         let autoPing: AutoPingSetup
         let validateUTF8: Bool
         let reservedBits: WebSocketFrame.ReservedBits
+        let closeTimeout: Duration
 
-        @_spi(WSInternal) public init(extensions: [any WebSocketExtension], autoPing: AutoPingSetup, validateUTF8: Bool) {
+        @_spi(WSInternal) public init(
+            extensions: [any WebSocketExtension],
+            autoPing: AutoPingSetup,
+            closeTimeout: Duration = .seconds(15),
+            validateUTF8: Bool
+        ) {
             self.extensions = extensions
             self.autoPing = autoPing
+            self.closeTimeout = closeTimeout
             self.validateUTF8 = validateUTF8
             // store reserved bits used by this handler
             self.reservedBits = extensions.reduce(.init()) { partialResult, `extension` in
@@ -122,31 +129,20 @@ public struct WebSocketCloseFrame: Sendable {
                     context.logger.debug("Closing WebSocket")
                 }
                 return try await withTaskCancellationHandler {
-                    try await withThrowingTaskGroup(of: WebSocketCloseFrame.self) { group in
-                        let webSocketHandler = Self(
-                            channel: asyncChannel.channel,
-                            outbound: outbound,
-                            type: type,
-                            configuration: configuration,
-                            context: context
-                        )
-                        if case .enabled = configuration.autoPing.value {
-                            /// Add task sending ping frames every so often and verifying a pong frame was sent back
-                            group.addTask {
-                                try await webSocketHandler.runAutoPingLoop()
-                                return .init(closeCode: .goingAway, reason: "Ping timeout")
-                            }
-                        }
-                        let rt = try await webSocketHandler.handle(
-                            type: type,
-                            inbound: inbound,
-                            outbound: outbound,
-                            handler: handler,
-                            context: context
-                        )
-                        group.cancelAll()
-                        return rt
-                    }
+                    let webSocketHandler = Self(
+                        channel: asyncChannel.channel,
+                        outbound: outbound,
+                        type: type,
+                        configuration: configuration,
+                        context: context
+                    )
+                    return try await webSocketHandler.handle(
+                        type: type,
+                        inbound: inbound,
+                        outbound: outbound,
+                        handler: handler,
+                        context: context
+                    )
                 } onCancel: {
                     Task {
                         try await asyncChannel.channel.close(mode: .input)
@@ -169,43 +165,57 @@ public struct WebSocketCloseFrame: Sendable {
         context: Context
     ) async throws -> WebSocketCloseFrame? {
         try await withGracefulShutdownHandler {
-            let webSocketOutbound = WebSocketOutboundWriter(handler: self)
-            var inboundIterator = inbound.makeAsyncIterator()
-            let webSocketInbound = WebSocketInboundStream(
-                iterator: inboundIterator,
-                handler: self
-            )
-            let closeCode: WebSocketErrorCode
-            var clientError: Error?
-            do {
-                // handle websocket data and text
-                try await handler(webSocketInbound, webSocketOutbound, context)
-                closeCode = .normalClosure
-            } catch InternalError.close(let code) {
-                closeCode = code
-            } catch {
-                clientError = error
-                closeCode = .unexpectedServerError
-            }
-            do {
-                try await self.close(code: closeCode)
-                if case .closing = self.stateMachine.state {
-                    // Close handshake. Wait for responding close or until inbound ends
-                    while let frame = try await inboundIterator.next() {
-                        if case .connectionClose = frame.opcode {
-                            try await self.receivedClose(frame)
-                            // only the server can close the connection, so clients
-                            // should continue reading from inbound until it is closed
-                            if type == .server {
-                                break
+            try await withThrowingTaskGroup(of: Void.self) { group in
+                if case .enabled = configuration.autoPing.value {
+                    /// Add task sending ping frames every so often and verifying a pong frame was sent back
+                    group.addTask {
+                        try await self.runAutoPingLoop()
+                    }
+                }
+                let webSocketOutbound = WebSocketOutboundWriter(handler: self)
+                var inboundIterator = inbound.makeAsyncIterator()
+                let webSocketInbound = WebSocketInboundStream(
+                    iterator: inboundIterator,
+                    handler: self
+                )
+                let closeCode: WebSocketErrorCode
+                var clientError: Error?
+                do {
+                    // handle websocket data and text
+                    try await handler(webSocketInbound, webSocketOutbound, context)
+                    closeCode = .normalClosure
+                } catch InternalError.close(let code) {
+                    closeCode = code
+                } catch {
+                    clientError = error
+                    closeCode = .unexpectedServerError
+                }
+                do {
+                    try await self.close(code: closeCode)
+                    if case .closing = self.stateMachine.state {
+                        group.addTask {
+                            try await Task.sleep(for: self.configuration.closeTimeout)
+                            try await self.channel.close(mode: .input)
+                        }
+                        // Close handshake. Wait for responding close or until inbound ends
+                        while let frame = try await inboundIterator.next() {
+                            if case .connectionClose = frame.opcode {
+                                try await self.receivedClose(frame)
+                                // only the server can close the connection, so clients
+                                // should continue reading from inbound until it is closed
+                                if type == .server {
+                                    break
+                                }
                             }
                         }
                     }
+                    // don't propagate error if channel is already closed
+                } catch ChannelError.ioOnClosedChannel {}
+                if type == .client, let clientError {
+                    throw clientError
                 }
-                // don't propagate error if channel is already closed
-            } catch ChannelError.ioOnClosedChannel {}
-            if type == .client, let clientError {
-                throw clientError
+
+                group.cancelAll()
             }
         } onGracefulShutdown: {
             Task {
