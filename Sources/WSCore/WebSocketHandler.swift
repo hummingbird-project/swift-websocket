@@ -126,7 +126,7 @@ public struct WebSocketCloseFrame: Sendable {
         do {
             let rt = try await asyncChannel.executeThenClose { inbound, outbound in
                 defer {
-                    context.logger.debug("Closing WebSocket")
+                    context.logger.trace("Closing WebSocket")
                 }
                 return try await withTaskCancellationHandler {
                     let webSocketHandler = Self(
