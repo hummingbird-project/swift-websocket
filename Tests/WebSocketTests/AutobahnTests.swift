@@ -23,6 +23,8 @@ import XCTest
 /// The Autobahn|Testsuite provides a fully automated test suite to verify client and server
 /// implementations of The WebSocket Protocol for specification conformance and implementation robustness.
 /// You can find out more at https://github.com/crossbario/autobahn-testsuite
+///
+/// Before running these tests run `./scripts/autobahn-server.sh` to running the test server.
 final class AutobahnTests: XCTestCase {
     /// To run all the autobahn compression tests takes a long time. By default we only run a selection.
     /// The `AUTOBAHN_ALL_TESTS` environment flag triggers running all of them.
@@ -58,6 +60,9 @@ final class AutobahnTests: XCTestCase {
         cases: Set<Int>,
         extensions: [WebSocketExtensionFactory] = [.perMessageDeflate(maxDecompressedFrameSize: 16_777_216)]
     ) async throws {
+        // These are broken in CI currently
+        try XCTSkipIf(ProcessInfo.processInfo.environment["CI"] != nil)
+
         struct CaseInfo: Decodable {
             let id: String
             let description: String
@@ -121,8 +126,6 @@ final class AutobahnTests: XCTestCase {
     }
 
     func test_3_ReservedBits() async throws {
-        // Reserved bits tests fail
-        try XCTSkipIf(true)
         try await self.autobahnTests(cases: .init(28..<35))
     }
 

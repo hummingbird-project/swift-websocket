@@ -110,6 +110,7 @@ struct WebSocketClientChannel: ClientConnectionChannel {
                 configuration: .init(
                     extensions: extensions,
                     autoPing: self.configuration.autoPing,
+                    closeTimeout: self.configuration.closeTimeout,
                     validateUTF8: self.configuration.validateUTF8
                 ),
                 asyncChannel: webSocketChannel,
