@@ -118,6 +118,7 @@ struct WebSocketStateMachine {
             }
             // creating random payload
             let random = (0..<Self.pingDataSize).map { _ in UInt8.random(in: 0...255) }
+            state.pingData.clear()
             state.pingData.writeBytes(random)
             state.lastPingTime = .now
             self.state = .open(state)
