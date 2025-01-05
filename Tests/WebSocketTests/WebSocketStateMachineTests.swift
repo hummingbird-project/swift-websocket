@@ -96,4 +96,34 @@ final class WebSocketStateMachineTests: XCTestCase {
             return
         }
     }
+
+    // Verify ping buffer size doesnt grow
+    func testPingBufferSize() async throws {
+        var stateMachine = WebSocketStateMachine(autoPingSetup: .enabled(timePeriod: .milliseconds(1)))
+        var currentBuffer = ByteBuffer()
+        var count = 0
+        while true {
+            switch stateMachine.sendPing() {
+            case .sendPing(let buffer):
+                XCTAssertEqual(buffer.readableBytes, 16)
+                currentBuffer = buffer
+                count += 1
+                if count > 4 {
+                    return
+                }
+
+            case .wait(let time):
+                try await Task.sleep(for: time)
+                stateMachine.receivedPong(frameData: currentBuffer)
+
+            case .closeConnection:
+                XCTFail("Should not timeout")
+                return
+
+            case .stop:
+                XCTFail("Should not stop")
+                return
+            }
+        }
+    }
 }
