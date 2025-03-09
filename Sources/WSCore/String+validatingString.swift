@@ -17,7 +17,7 @@ import NIOCore
 extension String {
     init?(buffer: ByteBuffer, validateUTF8: Bool) {
         #if compiler(>=6)
-        if #available(macOS 15, iOS 18, tvOS 18, watchOS 11, *), validateUTF8 {
+        if #available(macOS 15, iOS 18, tvOS 18, watchOS 11, visionOS 2, *), validateUTF8 {
             do {
                 var buffer = buffer
                 self = try buffer.readUTF8ValidatedString(length: buffer.readableBytes)!
