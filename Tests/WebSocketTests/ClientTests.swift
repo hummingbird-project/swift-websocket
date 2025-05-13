@@ -29,6 +29,25 @@ final class WebSocketClientTests: XCTestCase {
         }()
         try await WebSocketClient.connect(
             url: "wss://echo.websocket.org/",
+            tlsConfiguration: TLSConfiguration.makeClientConfiguration(),
+            logger: clientLogger
+        ) { inbound, outbound, _ in
+            var inboundIterator = inbound.messages(maxSize: .max).makeAsyncIterator()
+            try await outbound.write(.text("hello"))
+            if let msg = try await inboundIterator.next() {
+                print(msg)
+            }
+        }
+    }
+
+    func testEchoServerWithSNIHostname() async throws {
+        let clientLogger = {
+            var logger = Logger(label: "client")
+            logger.logLevel = .trace
+            return logger
+        }()
+        try await WebSocketClient.connect(
+            url: "wss://echo.websocket.org/",
             configuration: .init(sniHostname: "echo.websocket.org"),
             tlsConfiguration: TLSConfiguration.makeClientConfiguration(),
             logger: clientLogger
