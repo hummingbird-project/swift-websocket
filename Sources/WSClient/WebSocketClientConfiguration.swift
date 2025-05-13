@@ -29,6 +29,8 @@ public struct WebSocketClientConfiguration: Sendable {
     public var autoPing: AutoPingSetup
     /// Should text be validated to be UTF8
     public var validateUTF8: Bool
+    /// Hostname used during TLS handshake
+    public var sniHostname: String?
 
     /// Initialize WebSocketClient configuration
     ///   - Paramters
@@ -37,6 +39,7 @@ public struct WebSocketClientConfiguration: Sendable {
     ///     - extensions: WebSocket extensions
     ///     - autoPing: Automatic Ping configuration
     ///     - validateUTF8: Should text be checked to see if it is valid UTF8
+    @_disfavoredOverload
     public init(
         maxFrameSize: Int = (1 << 14),
         additionalHeaders: HTTPFields = .init(),
@@ -51,5 +54,32 @@ public struct WebSocketClientConfiguration: Sendable {
         self.closeTimeout = closeTimeout
         self.autoPing = autoPing
         self.validateUTF8 = validateUTF8
+        self.sniHostname = nil
+    }
+
+    /// Initialize WebSocketClient configuration
+    ///   - Paramters
+    ///     - maxFrameSize: Max websocket frame size that can be sent/received
+    ///     - additionalHeaders: Additional headers to be sent with the initial HTTP request
+    ///     - extensions: WebSocket extensions
+    ///     - autoPing: Automatic Ping configuration
+    ///     - validateUTF8: Should text be checked to see if it is valid UTF8
+    ///     - sniHostname: Hostname used during TLS handshake
+    public init(
+        maxFrameSize: Int = (1 << 14),
+        additionalHeaders: HTTPFields = .init(),
+        extensions: [WebSocketExtensionFactory] = [],
+        closeTimeout: Duration = .seconds(15),
+        autoPing: AutoPingSetup = .disabled,
+        validateUTF8: Bool = false,
+        sniHostname: String? = nil
+    ) {
+        self.maxFrameSize = maxFrameSize
+        self.additionalHeaders = additionalHeaders
+        self.extensions = extensions.map { $0.build() }
+        self.closeTimeout = closeTimeout
+        self.autoPing = autoPing
+        self.validateUTF8 = validateUTF8
+        self.sniHostname = sniHostname
     }
 }

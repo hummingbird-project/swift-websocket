@@ -29,8 +29,8 @@ final class WebSocketClientTests: XCTestCase {
         }()
         try await WebSocketClient.connect(
             url: "wss://echo.websocket.org/",
+            configuration: .init(sniHostname: "echo.websocket.org"),
             tlsConfiguration: TLSConfiguration.makeClientConfiguration(),
-            serverName: "echo.websocket.org",
             logger: clientLogger
         ) { inbound, outbound, _ in
             var inboundIterator = inbound.messages(maxSize: .max).makeAsyncIterator()
