@@ -2,7 +2,7 @@
 //
 // This source file is part of the Hummingbird server framework project
 //
-// Copyright (c) 2024 the Hummingbird authors
+// Copyright (c) 2024-2025 the Hummingbird authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -134,7 +134,7 @@ public struct WebSocketClient {
                     TLSClientChannel(
                         WebSocketClientChannel(handler: handler, url: url, configuration: self.configuration),
                         tlsConfiguration: tlsConfiguration,
-                        serverHostname: host
+                        serverHostname: self.configuration.sniHostname ?? host
                     ),
                     address: .hostname(host, port: port),
                     eventLoopGroup: self.eventLoopGroup,

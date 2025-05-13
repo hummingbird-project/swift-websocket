@@ -2,7 +2,7 @@
 //
 // This source file is part of the Hummingbird server framework project
 //
-// Copyright (c) 2023-2024 the Hummingbird authors
+// Copyright (c) 2023-2025 the Hummingbird authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -29,6 +29,8 @@ public struct WebSocketClientConfiguration: Sendable {
     public var autoPing: AutoPingSetup
     /// Should text be validated to be UTF8
     public var validateUTF8: Bool
+    /// Hostname used during TLS handshake
+    public var sniHostname: String?
 
     /// Initialize WebSocketClient configuration
     ///   - Paramters
@@ -37,13 +39,16 @@ public struct WebSocketClientConfiguration: Sendable {
     ///     - extensions: WebSocket extensions
     ///     - autoPing: Automatic Ping configuration
     ///     - validateUTF8: Should text be checked to see if it is valid UTF8
+    ///     - sniHostname: Hostname used during TLS handshake
+    @_disfavoredOverload
     public init(
         maxFrameSize: Int = (1 << 14),
         additionalHeaders: HTTPFields = .init(),
         extensions: [WebSocketExtensionFactory] = [],
         closeTimeout: Duration = .seconds(15),
         autoPing: AutoPingSetup = .disabled,
-        validateUTF8: Bool = false
+        validateUTF8: Bool = false,
+        sniHostname: String? = nil
     ) {
         self.maxFrameSize = maxFrameSize
         self.additionalHeaders = additionalHeaders
@@ -51,5 +56,6 @@ public struct WebSocketClientConfiguration: Sendable {
         self.closeTimeout = closeTimeout
         self.autoPing = autoPing
         self.validateUTF8 = validateUTF8
+        self.sniHostname = nil
     }
 }
