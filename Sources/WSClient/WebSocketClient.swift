@@ -50,7 +50,7 @@ public struct WebSocketClient {
     }
 
     enum MultiPlatformTLSConfiguration: Sendable {
-        case niossl(TLSConfiguration)
+        case niossl(TLSConfiguration, serverName: String?)
         #if canImport(Network)
         case ts(TSTLSOptions)
         #endif
@@ -91,7 +91,34 @@ public struct WebSocketClient {
         self.configuration = configuration
         self.eventLoopGroup = eventLoopGroup
         self.logger = logger
-        self.tlsConfiguration = tlsConfiguration.map { .niossl($0) }
+        self.tlsConfiguration = tlsConfiguration.map { .niossl($0, serverName: nil) }
+    }
+
+    /// Initialize websocket client
+    ///
+    /// - Parametes:
+    ///   - url: URL of websocket
+    ///   - tlsConfiguration: TLS configuration
+    ///   - serverName: Server name indication
+    ///   - handler: WebSocket data handler
+    ///   - maxFrameSize: Max frame size for a single packet
+    ///   - eventLoopGroup: EventLoopGroup to run WebSocket client on
+    ///   - logger: Logger
+    public init(
+        url: String,
+        configuration: WebSocketClientConfiguration = .init(),
+        tlsConfiguration: TLSConfiguration,
+        serverName: String,
+        eventLoopGroup: EventLoopGroup = MultiThreadedEventLoopGroup.singleton,
+        logger: Logger,
+        handler: @escaping WebSocketDataHandler<Context>
+    ) {
+        self.url = .init(url)
+        self.handler = handler
+        self.configuration = configuration
+        self.eventLoopGroup = eventLoopGroup
+        self.logger = logger
+        self.tlsConfiguration = .niossl(tlsConfiguration, serverName: serverName)
     }
 
     #if canImport(Network)
@@ -129,12 +156,12 @@ public struct WebSocketClient {
         let port = self.url.port ?? (requiresTLS ? 443 : 80)
         if requiresTLS {
             switch self.tlsConfiguration {
-            case .niossl(let tlsConfiguration):
+            case .niossl(let tlsConfiguration, let serverName):
                 let client = try ClientConnection(
                     TLSClientChannel(
                         WebSocketClientChannel(handler: handler, url: url, configuration: self.configuration),
                         tlsConfiguration: tlsConfiguration,
-                        serverHostname: host
+                        serverHostname: serverName ?? host
                     ),
                     address: .hostname(host, port: port),
                     eventLoopGroup: self.eventLoopGroup,
@@ -210,6 +237,38 @@ extension WebSocketClient {
             url: url,
             configuration: configuration,
             tlsConfiguration: tlsConfiguration,
+            eventLoopGroup: eventLoopGroup,
+            logger: logger,
+            handler: handler
+        )
+        return try await ws.run()
+    }
+
+    /// Create websocket client, connect and handle connection
+    ///
+    /// - Parametes:
+    ///   - url: URL of websocket
+    ///   - tlsConfiguration: TLS configuration
+    ///   - serverName: Server name indication
+    ///   - maxFrameSize: Max frame size for a single packet
+    ///   - eventLoopGroup: EventLoopGroup to run WebSocket client on
+    ///   - logger: Logger
+    ///   - process: Closure handling webSocket
+    /// - Returns: WebSocket close frame details if server returned any
+    @discardableResult public static func connect(
+        url: String,
+        configuration: WebSocketClientConfiguration = .init(),
+        tlsConfiguration: TLSConfiguration,
+        serverName: String,
+        eventLoopGroup: EventLoopGroup = MultiThreadedEventLoopGroup.singleton,
+        logger: Logger,
+        handler: @escaping WebSocketDataHandler<Context>
+    ) async throws -> WebSocketCloseFrame? {
+        let ws = self.init(
+            url: url,
+            configuration: configuration,
+            tlsConfiguration: tlsConfiguration,
+            serverName: serverName,
             eventLoopGroup: eventLoopGroup,
             logger: logger,
             handler: handler
