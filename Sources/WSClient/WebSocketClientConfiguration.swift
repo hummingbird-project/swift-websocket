@@ -40,7 +40,6 @@ public struct WebSocketClientConfiguration: Sendable {
     ///     - autoPing: Automatic Ping configuration
     ///     - validateUTF8: Should text be checked to see if it is valid UTF8
     ///     - sniHostname: Hostname used during TLS handshake
-    @_disfavoredOverload
     public init(
         maxFrameSize: Int = (1 << 14),
         additionalHeaders: HTTPFields = .init(),
@@ -56,6 +55,6 @@ public struct WebSocketClientConfiguration: Sendable {
         self.closeTimeout = closeTimeout
         self.autoPing = autoPing
         self.validateUTF8 = validateUTF8
-        self.sniHostname = nil
+        self.sniHostname = sniHostname
     }
 }
