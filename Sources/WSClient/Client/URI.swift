@@ -14,7 +14,7 @@
 
 /// Simple URL parser
 struct URI: Sendable, CustomStringConvertible, ExpressibleByStringLiteral {
-    struct Scheme: RawRepresentable, Equatable {
+    struct Scheme: RawRepresentable, Equatable, CustomStringConvertible {
         let rawValue: String
 
         init(rawValue: String) {
@@ -28,6 +28,8 @@ struct URI: Sendable, CustomStringConvertible, ExpressibleByStringLiteral {
         static var https_unix: Self { .init(rawValue: "https_unix") }
         static var ws: Self { .init(rawValue: "ws") }
         static var wss: Self { .init(rawValue: "wss") }
+
+        var description: String { self.rawValue }
     }
 
     let string: String
