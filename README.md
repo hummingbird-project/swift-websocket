@@ -15,6 +15,7 @@ The WebSocketClient is built on top of structured concurrency. When you connect 
 
 ```swift
 import WSClient
+import Logging
 
 let logger = Logger(label: "My Project")
 
