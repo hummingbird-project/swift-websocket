@@ -30,12 +30,14 @@ struct WebSocketClientChannel: ClientConnectionChannel {
 
     let urlPath: String
     let hostHeader: String
+    let originHeader: String
     let handler: WebSocketDataHandler<WebSocketClient.Context>
     let configuration: WebSocketClientConfiguration
 
     init(handler: @escaping WebSocketDataHandler<WebSocketClient.Context>, url: URI, configuration: WebSocketClientConfiguration) throws {
-        guard let hostHeader = Self.urlHostHeader(for: url) else { throw WebSocketClientError.invalidURL }
+        guard let (hostHeader, originHeader) = Self.urlHostAndOriginHeaders(for: url) else { throw WebSocketClientError.invalidURL }
         self.hostHeader = hostHeader
+        self.originHeader = originHeader
         self.urlPath = Self.urlPath(for: url)
         self.handler = handler
         self.configuration = configuration
@@ -63,8 +65,8 @@ struct WebSocketClientChannel: ClientConnectionChannel {
             )
 
             var headers = HTTPHeaders()
-            headers.add(name: "Content-Length", value: "0")
-            headers.add(name: "Host", value: self.hostHeader)
+            headers.replaceOrAdd(name: "Host", value: self.hostHeader)
+            headers.replaceOrAdd(name: "Origin", value: self.originHeader)
             let additionalHeaders = HTTPHeaders(self.configuration.additionalHeaders)
             headers.add(contentsOf: additionalHeaders)
             // add websocket extensions to headers
@@ -128,12 +130,13 @@ struct WebSocketClientChannel: ClientConnectionChannel {
         url.path + (url.query.map { "?\($0)" } ?? "")
     }
 
-    static func urlHostHeader(for url: URI) -> String? {
-        guard let host = url.host else { return nil }
+    static func urlHostAndOriginHeaders(for url: URI) -> (host: String, origin: String)? {
+        guard let scheme = url.scheme, let host = url.host else { return nil }
+        let origin = "\(scheme)://\(host)"
         if let port = url.port {
-            return "\(host):\(port)"
+            return (host: "\(host):\(port)", origin: origin)
         } else {
-            return host
+            return (host: host, origin: origin)
         }
     }
 }

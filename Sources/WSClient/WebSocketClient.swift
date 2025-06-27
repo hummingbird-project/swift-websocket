@@ -163,7 +163,7 @@ public struct WebSocketClient {
                             configuration: self.configuration
                         ),
                         tlsConfiguration: TLSConfiguration.makeClientConfiguration(),
-                        serverHostname: host
+                        serverHostname: self.configuration.sniHostname ?? host
                     ),
                     address: .hostname(host, port: port),
                     eventLoopGroup: self.eventLoopGroup,
