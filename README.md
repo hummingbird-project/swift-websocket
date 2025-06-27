@@ -16,11 +16,13 @@ The WebSocketClient is built on top of structured concurrency. When you connect 
 ```swift
 import WSClient
 
-let ws = WebSocketClient.connect(url: "ws://mywebsocket.com/ws") { inbound, outbound, context in
+let logger = Logger(label: "My Project")
+
+let ws = try await WebSocketClient.connect(url: "ws://mywebsocket.com/ws", logger: logger) { inbound, outbound, context in
     try await outbound.write(.text("Hello"))
     // you can convert the inbound stream of frames into a stream of full messages using `messages(maxSize:)`
     for try await frame in inbound.messages(maxSize: 1 << 14) {
-        context.logger.info(frame)
+        context.logger.info("\(frame.description)")
     }
 }
 ```
