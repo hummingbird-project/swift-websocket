@@ -25,7 +25,7 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
     - name: Restart Autobahn
       # The autobahn service container is started *before* swift-websocket is checked
       # out. Restarting the container after the checkout step is needed for the
