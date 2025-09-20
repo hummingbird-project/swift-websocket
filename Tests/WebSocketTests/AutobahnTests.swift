@@ -16,16 +16,17 @@ import Foundation
 import Logging
 import NIOConcurrencyHelpers
 import NIOPosix
+import Testing
 import WSClient
 import WSCompression
-import XCTest
 
 /// The Autobahn|Testsuite provides a fully automated test suite to verify client and server
 /// implementations of The WebSocket Protocol for specification conformance and implementation robustness.
 /// You can find out more at https://github.com/crossbario/autobahn-testsuite
 ///
 /// Before running these tests run `./scripts/autobahn-server.sh` to running the test server.
-final class AutobahnTests: XCTestCase {
+@Suite(.disabled(if: ci), .serialized)
+struct AutobahnTests {
     /// To run all the autobahn compression tests takes a long time. By default we only run a selection.
     /// The `AUTOBAHN_ALL_TESTS` environment flag triggers running all of them.
     var runAllTests: Bool { ProcessInfo.processInfo.environment["AUTOBAHN_ALL_TESTS"] == "true" }
@@ -52,7 +53,7 @@ final class AutobahnTests: XCTestCase {
                 return
             }
         }
-        return try result.withLockedValue { try XCTUnwrap($0) }
+        return try result.withLockedValue { try #require($0) }
     }
 
     /// Run a number of autobahn tests
@@ -60,9 +61,6 @@ final class AutobahnTests: XCTestCase {
         cases: Set<Int>,
         extensions: [WebSocketExtensionFactory] = [.perMessageDeflate(maxDecompressedFrameSize: 16_777_216)]
     ) async throws {
-        // These are broken in CI currently
-        try XCTSkipIf(ProcessInfo.processInfo.environment["CI"] != nil)
-
         struct CaseInfo: Decodable {
             let id: String
             let description: String
@@ -102,7 +100,7 @@ final class AutobahnTests: XCTestCase {
 
                 // get case status
                 let status = try await getValue("getCaseStatus?case=\(index)&agent=swift-websocket", as: CaseStatus.self)
-                XCTAssert(status.behavior == "OK" || status.behavior == "INFORMATIONAL" || status.behavior == "NON-STRICT")
+                #expect(status.behavior == "OK" || status.behavior == "INFORMATIONAL" || status.behavior == "NON-STRICT")
             }
 
             try await WebSocketClient.connect(
@@ -117,27 +115,27 @@ final class AutobahnTests: XCTestCase {
         }
     }
 
-    func test_1_Framing() async throws {
+    @Test func test_1_Framing() async throws {
         try await self.autobahnTests(cases: .init(1..<17))
     }
 
-    func test_2_PingPongs() async throws {
+    @Test func test_2_PingPongs() async throws {
         try await self.autobahnTests(cases: .init(17..<28))
     }
 
-    func test_3_ReservedBits() async throws {
+    @Test func test_3_ReservedBits() async throws {
         try await self.autobahnTests(cases: .init(28..<35))
     }
 
-    func test_4_Opcodes() async throws {
+    @Test func test_4_Opcodes() async throws {
         try await self.autobahnTests(cases: .init(35..<45))
     }
 
-    func test_5_Fragmentation() async throws {
+    @Test func test_5_Fragmentation() async throws {
         try await self.autobahnTests(cases: .init(45..<65))
     }
 
-    func test_6_UTF8Handling() async throws {
+    @Test func test_6_UTF8Handling() async throws {
         // UTF8 validation is available on swift 5.10 or earlier
         #if compiler(<6)
         try XCTSkipIf(true)
@@ -145,7 +143,7 @@ final class AutobahnTests: XCTestCase {
         try await self.autobahnTests(cases: .init(65..<210))
     }
 
-    func test_7_CloseHandling() async throws {
+    @Test func test_7_CloseHandling() async throws {
         // UTF8 validation is available on swift 5.10 or earlier
         #if compiler(<6)
         try await self.autobahnTests(cases: .init(210..<222))
@@ -155,7 +153,7 @@ final class AutobahnTests: XCTestCase {
         #endif
     }
 
-    func test_9_Performance() async throws {
+    @Test func test_9_Performance() async throws {
         if !self.runAllTests {
             try await self.autobahnTests(cases: .init([247, 260, 270, 281, 291, 296]))
         } else {
@@ -163,11 +161,11 @@ final class AutobahnTests: XCTestCase {
         }
     }
 
-    func test_10_AutoFragmentation() async throws {
+    @Test func test_10_AutoFragmentation() async throws {
         try await self.autobahnTests(cases: .init([301]))
     }
 
-    func test_12_CompressionDifferentPayloads() async throws {
+    @Test func test_12_CompressionDifferentPayloads() async throws {
         if !self.runAllTests {
             try await self.autobahnTests(cases: .init([302, 330, 349, 360, 388]))
         } else {
@@ -175,7 +173,7 @@ final class AutobahnTests: XCTestCase {
         }
     }
 
-    func test_13_CompressionDifferentParameters() async throws {
+    @Test func test_13_CompressionDifferentParameters() async throws {
         if !self.runAllTests {
             try await self.autobahnTests(
                 cases: .init([392]),
@@ -255,3 +253,5 @@ final class AutobahnTests: XCTestCase {
         }
     }
 }
+
+var ci: Bool { ProcessInfo.processInfo.environment["CI"] != nil }

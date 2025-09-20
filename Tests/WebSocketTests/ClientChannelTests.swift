@@ -13,17 +13,17 @@
 //===----------------------------------------------------------------------===//
 
 import Logging
-import XCTest
+import Testing
 
 @testable import WSClient
 
-final class ClientChannelTests: XCTestCase {
+struct ClientChannelTests {
 
-    func testInitialRequestHeader() async throws {
+    @Test func testInitialRequestHeader() async throws {
         let ws = try WebSocketClientChannel(handler: { _, _, _ in }, url: "wss://echo.websocket.org:443/ws", configuration: .init())
 
-        XCTAssertEqual(ws.urlPath, "/ws")
-        XCTAssertEqual(ws.hostHeader, "echo.websocket.org:443")
-        XCTAssertEqual(ws.originHeader, "wss://echo.websocket.org")
+        #expect(ws.urlPath == "/ws")
+        #expect(ws.hostHeader == "echo.websocket.org:443")
+        #expect(ws.originHeader == "wss://echo.websocket.org")
     }
 }

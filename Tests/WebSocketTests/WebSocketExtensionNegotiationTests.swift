@@ -14,58 +14,54 @@
 
 import HTTPTypes
 import NIOWebSocket
-import XCTest
+import Testing
 
 @testable import WSCompression
 @testable import WSCore
 
-final class WebSocketExtensionNegotiationTests: XCTestCase {
-    func testExtensionHeaderParsing() {
+struct WebSocketExtensionNegotiationTests {
+    @Test func testExtensionHeaderParsing() {
         let headers: HTTPFields = .init([
             .init(name: .secWebSocketExtensions, value: "permessage-deflate; client_max_window_bits; server_max_window_bits=10"),
             .init(name: .secWebSocketExtensions, value: "permessage-deflate;client_max_window_bits"),
         ])
         let extensions = WebSocketExtensionHTTPParameters.parseHeaders(headers)
-        XCTAssertEqual(
-            extensions,
-            [
+        #expect(
+            extensions == [
                 .init("permessage-deflate", parameters: ["client_max_window_bits": .null, "server_max_window_bits": .value("10")]),
                 .init("permessage-deflate", parameters: ["client_max_window_bits": .null]),
             ]
         )
     }
 
-    func testDeflateServerResponse() {
+    @Test func testDeflateServerResponse() {
         let requestHeaders: [WebSocketExtensionHTTPParameters] = [
             .init("permessage-deflate", parameters: ["client_max_window_bits": .value("10")])
         ]
         let ext = PerMessageDeflateExtensionBuilder(clientNoContextTakeover: true, serverNoContextTakeover: true)
         let serverResponse = ext.serverResponseHeader(to: requestHeaders)
-        XCTAssertEqual(
-            serverResponse,
-            "permessage-deflate;client_max_window_bits=10;client_no_context_takeover;server_no_context_takeover"
+        #expect(
+            serverResponse == "permessage-deflate;client_max_window_bits=10;client_no_context_takeover;server_no_context_takeover"
         )
     }
 
-    func testDeflateServerResponseClientMaxWindowBits() {
+    @Test func testDeflateServerResponseClientMaxWindowBits() {
         let requestHeaders: [WebSocketExtensionHTTPParameters] = [
             .init("permessage-deflate", parameters: ["client_max_window_bits": .null])
         ]
         let ext1 = PerMessageDeflateExtensionBuilder(serverNoContextTakeover: true)
         let serverResponse1 = ext1.serverResponseHeader(to: requestHeaders)
-        XCTAssertEqual(
-            serverResponse1,
-            "permessage-deflate;server_no_context_takeover"
+        #expect(
+            serverResponse1 == "permessage-deflate;server_no_context_takeover"
         )
         let ext2 = PerMessageDeflateExtensionBuilder(clientNoContextTakeover: true, serverMaxWindow: 12)
         let serverResponse2 = ext2.serverResponseHeader(to: requestHeaders)
-        XCTAssertEqual(
-            serverResponse2,
-            "permessage-deflate;client_no_context_takeover;server_max_window_bits=12"
+        #expect(
+            serverResponse2 == "permessage-deflate;client_no_context_takeover;server_max_window_bits=12"
         )
     }
 
-    func testUnregonisedExtensionServerResponse() throws {
+    @Test func testUnregonisedExtensionServerResponse() throws {
         let serverExtensions: [WebSocketExtensionBuilder] = [PerMessageDeflateExtensionBuilder()]
         let (headers, extensions) = try serverExtensions.serverExtensionNegotiation(
             requestHeaders: [
@@ -73,20 +69,19 @@ final class WebSocketExtensionNegotiationTests: XCTestCase {
                 .secWebSocketExtensions: "permessage-deflate;client_max_window_bits=10",
             ]
         )
-        XCTAssertEqual(
-            headers[.secWebSocketExtensions],
-            "permessage-deflate;client_max_window_bits=10"
+        #expect(
+            headers[.secWebSocketExtensions] == "permessage-deflate;client_max_window_bits=10"
         )
-        XCTAssertEqual(extensions.count, 1)
-        let firstExtension = try XCTUnwrap(extensions.first)
-        XCTAssert(firstExtension is PerMessageDeflateExtension)
+        #expect(extensions.count == 1)
+        let firstExtension = try #require(extensions.first)
+        #expect(firstExtension is PerMessageDeflateExtension)
 
         let requestExtensions = try serverExtensions.buildClientExtensions(from: headers)
-        XCTAssertEqual(requestExtensions.count, 1)
-        XCTAssert(requestExtensions[0] is PerMessageDeflateExtension)
+        #expect(requestExtensions.count == 1)
+        #expect(requestExtensions[0] is PerMessageDeflateExtension)
     }
 
-    func testNonNegotiableClientExtension() throws {
+    @Test func testNonNegotiableClientExtension() throws {
         struct MyExtension: WebSocketExtension {
             var name = "my-extension"
 
@@ -106,12 +101,12 @@ final class WebSocketExtensionNegotiationTests: XCTestCase {
             }.build()
         ]
         let clientExtensions = try clientExtensionBuilders.buildClientExtensions(from: [:])
-        XCTAssertEqual(clientExtensions.count, 1)
-        let myExtension = try XCTUnwrap(clientExtensions.first)
-        XCTAssert(myExtension is MyExtension)
+        #expect(clientExtensions.count == 1)
+        let myExtension = try #require(clientExtensions.first)
+        #expect(myExtension is MyExtension)
     }
 
-    func testNonNegotiableServerExtension() throws {
+    @Test func testNonNegotiableServerExtension() throws {
         struct MyExtension: WebSocketExtension {
             var name = "my-extension"
 
@@ -129,9 +124,9 @@ final class WebSocketExtensionNegotiationTests: XCTestCase {
         let (headers, serverExtensions) = try serverExtensionBuilders.serverExtensionNegotiation(
             requestHeaders: [:]
         )
-        XCTAssertEqual(headers.count, 0)
-        XCTAssertEqual(serverExtensions.count, 1)
-        let myExtension = try XCTUnwrap(serverExtensions.first)
-        XCTAssert(myExtension is MyExtension)
+        #expect(headers.count == 0)
+        #expect(serverExtensions.count == 1)
+        let myExtension = try #require(serverExtensions.first)
+        #expect(myExtension is MyExtension)
     }
 }

@@ -16,12 +16,12 @@ import Logging
 import NIOCore
 import NIOSSL
 import NIOWebSocket
+import Testing
 import WSClient
-import XCTest
 
-final class WebSocketClientTests: XCTestCase {
+struct WebSocketClientTests {
 
-    func testEchoServer() async throws {
+    @Test func testEchoServer() async throws {
         let clientLogger = {
             var logger = Logger(label: "client")
             logger.logLevel = .trace
@@ -40,7 +40,7 @@ final class WebSocketClientTests: XCTestCase {
         }
     }
 
-    func testEchoServerWithSNIHostname() async throws {
+    @Test func testEchoServerWithSNIHostname() async throws {
         let clientLogger = {
             var logger = Logger(label: "client")
             logger.logLevel = .trace

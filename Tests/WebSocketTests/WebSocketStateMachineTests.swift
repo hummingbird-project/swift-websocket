@@ -14,11 +14,11 @@
 
 import NIOCore
 import NIOWebSocket
-import XCTest
+import Testing
 
 @testable import WSCore
 
-final class WebSocketStateMachineTests: XCTestCase {
+struct WebSocketStateMachineTests {
     private func closeFrameData(code: WebSocketErrorCode = .normalClosure, reason: String? = nil) -> ByteBuffer {
         var buffer = ByteBufferAllocator().buffer(capacity: 2 + (reason?.utf8.count ?? 0))
         buffer.write(webSocketErrorCode: code)
@@ -28,84 +28,84 @@ final class WebSocketStateMachineTests: XCTestCase {
         return buffer
     }
 
-    func testClose() {
+    @Test func testClose() {
         var stateMachine = WebSocketStateMachine(autoPingSetup: .disabled)
         guard case .sendClose = stateMachine.close() else {
-            XCTFail()
+            Issue.record()
             return
         }
         guard case .doNothing = stateMachine.close() else {
-            XCTFail()
+            Issue.record()
             return
         }
         guard case .doNothing = stateMachine.receivedClose(frameData: self.closeFrameData(), validateUTF8: false) else {
-            XCTFail()
+            Issue.record()
             return
         }
         guard case .closed(let frame) = stateMachine.state else {
-            XCTFail()
+            Issue.record()
             return
         }
-        XCTAssertEqual(frame?.closeCode, .normalClosure)
+        #expect(frame?.closeCode == .normalClosure)
     }
 
-    func testReceivedClose() {
+    @Test func testReceivedClose() {
         var stateMachine = WebSocketStateMachine(autoPingSetup: .disabled)
         guard case .sendClose(let error) = stateMachine.receivedClose(frameData: closeFrameData(code: .goingAway), validateUTF8: false) else {
-            XCTFail()
+            Issue.record()
             return
         }
-        XCTAssertEqual(error, .normalClosure)
+        #expect(error == .normalClosure)
         guard case .closed(let frame) = stateMachine.state else {
-            XCTFail()
+            Issue.record()
             return
         }
-        XCTAssertEqual(frame?.closeCode, .goingAway)
+        #expect(frame?.closeCode == .goingAway)
     }
 
-    func testPingLoopNoPong() {
+    @Test func testPingLoopNoPong() {
         var stateMachine = WebSocketStateMachine(autoPingSetup: .enabled(timePeriod: .seconds(15)))
         guard case .sendPing = stateMachine.sendPing() else {
-            XCTFail()
+            Issue.record()
             return
         }
         guard case .wait = stateMachine.sendPing() else {
-            XCTFail()
+            Issue.record()
             return
         }
     }
 
-    func testPingLoop() {
+    @Test func testPingLoop() {
         var stateMachine = WebSocketStateMachine(autoPingSetup: .enabled(timePeriod: .seconds(15)))
         guard case .sendPing(let buffer) = stateMachine.sendPing() else {
-            XCTFail()
+            Issue.record()
             return
         }
         guard case .wait = stateMachine.sendPing() else {
-            XCTFail()
+            Issue.record()
             return
         }
         stateMachine.receivedPong(frameData: buffer)
         guard case .open(let openState) = stateMachine.state else {
-            XCTFail()
+            Issue.record()
             return
         }
-        XCTAssertEqual(openState.lastPingTime, nil)
+        #expect(openState.lastPingTime == nil)
         guard case .sendPing = stateMachine.sendPing() else {
-            XCTFail()
+            Issue.record()
             return
         }
     }
 
     // Verify ping buffer size doesnt grow
-    func testPingBufferSize() async throws {
+    @Test func testPingBufferSize() async throws {
         var stateMachine = WebSocketStateMachine(autoPingSetup: .enabled(timePeriod: .milliseconds(1)))
         var currentBuffer = ByteBuffer()
         var count = 0
         while true {
             switch stateMachine.sendPing() {
             case .sendPing(let buffer):
-                XCTAssertEqual(buffer.readableBytes, 16)
+                #expect(buffer.readableBytes == 16)
                 currentBuffer = buffer
                 count += 1
                 if count > 4 {
@@ -117,11 +117,11 @@ final class WebSocketStateMachineTests: XCTestCase {
                 stateMachine.receivedPong(frameData: currentBuffer)
 
             case .closeConnection:
-                XCTFail("Should not timeout")
+                Issue.record("Should not timeout")
                 return
 
             case .stop:
-                XCTFail("Should not stop")
+                Issue.record("Should not stop")
                 return
             }
         }
