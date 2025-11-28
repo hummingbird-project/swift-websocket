@@ -89,7 +89,7 @@ struct WebSocketClientChannel: ClientConnectionChannel {
                 upgraders: [upgrader],
                 notUpgradingCompletionHandler: { channel in
                     channel.eventLoop.makeCompletedFuture {
-                        return UpgradeResult.notUpgraded
+                        UpgradeResult.notUpgraded
                     }
                 }
             )
