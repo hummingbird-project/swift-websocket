@@ -124,9 +124,14 @@ public struct WebSocketClient {
     /// Connect and run handler
     /// - Returns: WebSocket close frame details if server returned any
     @discardableResult public func run() async throws -> WebSocketCloseFrame? {
-        guard let host = url.host else { throw WebSocketClientError.invalidURL }
-        let requiresTLS = self.url.scheme == .wss || self.url.scheme == .https
-        let port = self.url.port ?? (requiresTLS ? 443 : 80)
+        guard var host = url.host else { throw WebSocketClientError.invalidURL }
+        var requiresTLS = self.url.scheme == .wss || self.url.scheme == .https
+        var port = self.url.port ?? (requiresTLS ? 443 : 80)
+        if let proxySettings = self.configuration.proxySettings {
+            host = proxySettings.host
+            port = proxySettings.port
+            requiresTLS = self.tlsConfiguration != nil
+        }
         var tlsConfiguration: TLSConfiguration? = nil
         if requiresTLS {
             switch self.tlsConfiguration {
