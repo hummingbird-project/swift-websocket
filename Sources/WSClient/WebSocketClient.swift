@@ -127,7 +127,6 @@ public struct WebSocketClient {
         guard let host = url.host else { throw WebSocketClientError.invalidURL }
         let requiresTLS = self.url.scheme == .wss || self.url.scheme == .https
         let port = self.url.port ?? (requiresTLS ? 443 : 80)
-
         var tlsConfiguration: TLSConfiguration? = nil
         if requiresTLS {
             switch self.tlsConfiguration {
