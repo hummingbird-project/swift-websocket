@@ -2,7 +2,7 @@
 //
 // This source file is part of the Hummingbird server framework project
 //
-// Copyright (c) 2023-2025 the Hummingbird authors
+// Copyright (c) 2023-2026 the Hummingbird authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -19,34 +19,6 @@ import WSCore
 
 /// Configuration for a client connecting to a WebSocket
 public struct WebSocketClientConfiguration: Sendable {
-    public struct ProxySettings: Sendable {
-        /// Proxy endpoint hostname
-        public var host: String
-        /// Proxy port
-        public var port: Int
-        /// Headers sent with CONNECT request
-        public var connectHeaders: HTTPFields
-        /// Timeout for CONNECT response
-        public var timeout: Duration
-
-        /// Initialize ProxySettings
-        /// - Parameters:
-        ///   - host: Proxy endpoint host name
-        ///   - port: Proxy endoint port
-        ///   - connectHeaders: Headers send with CONNECT
-        ///   - deadline: Deadline for CONNECT request
-        public init(
-            host: String,
-            port: Int,
-            connectHeaders: HTTPFields,
-            timeout: Duration
-        ) {
-            self.host = host
-            self.port = port
-            self.connectHeaders = connectHeaders
-            self.timeout = timeout
-        }
-    }
     /// Max websocket frame size that can be sent/received
     public var maxFrameSize: Int
     /// Additional headers to be sent with the initial HTTP request
@@ -61,8 +33,6 @@ public struct WebSocketClientConfiguration: Sendable {
     public var validateUTF8: Bool
     /// Hostname used during TLS handshake
     public var sniHostname: String?
-    /// Setup for proxy
-    public var proxySettings: ProxySettings?
 
     /// Initialize WebSocketClient configuration
     ///   - Paramters
@@ -88,35 +58,35 @@ public struct WebSocketClientConfiguration: Sendable {
         self.autoPing = autoPing
         self.validateUTF8 = validateUTF8
         self.sniHostname = sniHostname
-        self.proxySettings = nil
     }
+}
 
-    /// Initialize WebSocketClient configuration with settings for proxy
-    ///   - Paramters
-    ///     - proxySettings: Setup values for proxy.
-    ///     - maxFrameSize: Max websocket frame size that can be sent/received
-    ///     - additionalHeaders: Additional headers to be sent with the initial HTTP request
-    ///     - extensions: WebSocket extensions
-    ///     - autoPing: Automatic Ping configuration
-    ///     - validateUTF8: Should text be checked to see if it is valid UTF8
-    ///     - sniHostname: Hostname used during TLS handshake
+/// WebSocket client proxy settings
+public struct WebSocketProxySettings: Sendable {
+    /// Proxy endpoint hostname
+    public var host: String
+    /// Proxy port
+    public var port: Int
+    /// Headers sent with CONNECT request
+    public var connectHeaders: HTTPFields
+    /// Timeout for CONNECT response
+    public var timeout: Duration
+
+    /// Initialize ProxySettings
+    /// - Parameters:
+    ///   - host: Proxy endpoint host name
+    ///   - port: Proxy endoint port
+    ///   - connectHeaders: Headers send with CONNECT
+    ///   - timeout: Timeout for CONNECT request
     public init(
-        withProxy proxySettings: ProxySettings,
-        maxFrameSize: Int = (1 << 14),
-        additionalHeaders: HTTPFields = .init(),
-        extensions: [WebSocketExtensionFactory] = [],
-        closeTimeout: Duration = .seconds(15),
-        autoPing: AutoPingSetup = .disabled,
-        validateUTF8: Bool = false,
-        sniHostname: String? = nil
+        host: String,
+        port: Int,
+        connectHeaders: HTTPFields = [:],
+        timeout: Duration = .seconds(30)
     ) {
-        self.maxFrameSize = maxFrameSize
-        self.additionalHeaders = additionalHeaders
-        self.extensions = extensions.map { $0.build() }
-        self.closeTimeout = closeTimeout
-        self.autoPing = autoPing
-        self.validateUTF8 = validateUTF8
-        self.sniHostname = sniHostname
-        self.proxySettings = proxySettings
+        self.host = host
+        self.port = port
+        self.connectHeaders = connectHeaders
+        self.timeout = timeout
     }
 }

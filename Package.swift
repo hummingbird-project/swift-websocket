@@ -16,7 +16,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/apple/swift-http-types.git", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.4.0"),
-        .package(url: "https://github.com/apple/swift-nio.git", from: "2.92.0"),
+        .package(url: "https://github.com/adam-fowler/swift-nio.git", branch: "websocket-upgrade-on-add"),
         .package(url: "https://github.com/apple/swift-nio-extras.git", from: "1.22.0"),
         .package(url: "https://github.com/apple/swift-nio-ssl.git", from: "2.5.0"),
         .package(url: "https://github.com/apple/swift-nio-transport-services.git", from: "1.20.0"),
@@ -63,6 +63,7 @@ let package = Package(
             dependencies: [
                 .byName(name: "WSClient"),
                 .byName(name: "WSCompression"),
+                .product(name: "NIOEmbedded", package: "swift-nio"),
             ]
         ),
     ],

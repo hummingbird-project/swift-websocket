@@ -17,6 +17,9 @@ public struct WebSocketClientError: Swift.Error, Equatable {
     private enum _Internal: Equatable {
         case invalidURL
         case webSocketUpgradeFailed
+        case proxyHandshakeFailed
+        case proxyHandshakeInvalidResponse
+        case proxyHandshakeTimeout
     }
 
     private let value: _Internal
@@ -28,6 +31,12 @@ public struct WebSocketClientError: Swift.Error, Equatable {
     public static var invalidURL: Self { .init(.invalidURL) }
     /// WebSocket upgrade failed.
     public static var webSocketUpgradeFailed: Self { .init(.webSocketUpgradeFailed) }
+    /// Proxy connection failed.
+    public static var proxyHandshakeFailed: Self { .init(.proxyHandshakeFailed) }
+    /// Proxy connection return invalid response.
+    public static var proxyHandshakeInvalidResponse: Self { .init(.proxyHandshakeInvalidResponse) }
+    /// Proxy connection timed out.
+    public static var proxyHandshakeTimeout: Self { .init(.proxyHandshakeTimeout) }
 }
 
 extension WebSocketClientError: CustomStringConvertible {
@@ -35,6 +44,9 @@ extension WebSocketClientError: CustomStringConvertible {
         switch self.value {
         case .invalidURL: "Invalid URL"
         case .webSocketUpgradeFailed: "WebSocket upgrade failed"
+        case .proxyHandshakeFailed: "Proxy handshake failed"
+        case .proxyHandshakeInvalidResponse: "Proxy return an invalid response during the handshake"
+        case .proxyHandshakeTimeout: "Proxy handshake timed out"
         }
     }
 }

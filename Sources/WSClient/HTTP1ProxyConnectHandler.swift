@@ -104,7 +104,7 @@ final class HTTP1ProxyConnectHandler: ChannelDuplexHandler, RemovableChannelHand
         // We have been formally removed from the pipeline. We should send any buffered data we have.
         switch self.state {
         case .initialized, .connectSent, .headReceived, .failed:
-            self.failWithError(.noResult(), context: context)
+            self.failWithError(.noResult, context: context)
 
         case .completed:
             while let (bufferedPart, isMarked) = self.bufferedWrittenMessages.popFirstCheckMarked() {
@@ -129,13 +129,13 @@ final class HTTP1ProxyConnectHandler: ChannelDuplexHandler, RemovableChannelHand
         switch self.state {
         case .failed, .completed:
             guard self.bufferedWrittenMessages.isEmpty else {
-                self.failWithError(HTTPProxyError.droppedWrites(), context: context)
+                self.failWithError(HTTPProxyError.droppedWrites, context: context)
                 return
             }
             break
 
         case .initialized, .connectSent, .headReceived:
-            self.failWithError(HTTPProxyError.noResult(), context: context)
+            self.failWithError(HTTPProxyError.noResult, context: context)
         }
     }
 
@@ -147,10 +147,10 @@ final class HTTP1ProxyConnectHandler: ChannelDuplexHandler, RemovableChannelHand
     func channelInactive(context: ChannelHandlerContext) {
         switch self.state {
         case .initialized:
-            self.failWithError(HTTPProxyError.channelUnexpectedlyInactive(), context: context, closeConnection: false)
+            self.failWithError(HTTPProxyError.channelUnexpectedlyInactive, context: context, closeConnection: false)
         case .connectSent(let timeout), .headReceived(let timeout):
             timeout.cancel()
-            self.failWithError(HTTPProxyError.remoteConnectionClosed(), context: context, closeConnection: false)
+            self.failWithError(HTTPProxyError.remoteConnectionClosed, context: context, closeConnection: false)
 
         case .failed, .completed:
             break
@@ -181,7 +181,7 @@ final class HTTP1ProxyConnectHandler: ChannelDuplexHandler, RemovableChannelHand
                 preconditionFailure("How can we have a scheduled timeout, if the connection is not even up?")
 
             case .connectSent, .headReceived:
-                self.failWithError(HTTPProxyError.httpProxyHandshakeTimeout(), context: context)
+                self.failWithError(HTTPProxyError.httpProxyHandshakeTimeout, context: context)
 
             case .failed, .completed:
                 break
@@ -212,12 +212,12 @@ final class HTTP1ProxyConnectHandler: ChannelDuplexHandler, RemovableChannelHand
                 // blank line that concludes the successful response's header section
                 self.state = .headReceived(scheduled)
             case 407:
-                self.failWithError(HTTPProxyError.proxyAuthenticationRequired(), context: context)
+                self.failWithError(HTTPProxyError.proxyAuthenticationRequired, context: context)
 
             default:
                 // Any response other than a successful response indicates that the tunnel
                 // has not yet been formed and that the connection remains governed by HTTP.
-                self.failWithError(HTTPProxyError.invalidProxyResponseHead(head), context: context)
+                self.failWithError(HTTPProxyError.invalidProxyResponseHead, context: context)
             }
         case .failed:
             break
@@ -231,7 +231,7 @@ final class HTTP1ProxyConnectHandler: ChannelDuplexHandler, RemovableChannelHand
         case .headReceived(let timeout):
             timeout.cancel()
             // we don't expect a body
-            self.failWithError(HTTPProxyError.invalidProxyResponse(), context: context)
+            self.failWithError(HTTPProxyError.invalidProxyResponse, context: context)
         case .failed:
             // ran into an error before... ignore this one
             break
@@ -253,9 +253,7 @@ final class HTTP1ProxyConnectHandler: ChannelDuplexHandler, RemovableChannelHand
         }
 
         // Ok, we've set up the proxy connection. We can now remove ourselves, which should happen synchronously.
-        context.pipeline.syncOperations.removeHandler(context: context, promise: nil)
-
-        self.promise?.succeed(())
+        context.pipeline.syncOperations.removeHandler(context: context, promise: promise)
     }
 
     private func failWithError(_ error: HTTPProxyError, context: ChannelHandlerContext, closeConnection: Bool = true) {
@@ -277,122 +275,25 @@ final class HTTP1ProxyConnectHandler: ChannelDuplexHandler, RemovableChannelHand
 
 }
 
-/// Error types for ``HTTPProxyError``
-public struct HTTPProxyError: Swift.Error {
-    fileprivate enum Details {
-        case proxyAuthenticationRequired
-        case invalidProxyResponseHead(head: HTTPResponseHead)
-        case invalidProxyResponse
-        case remoteConnectionClosed
-        case httpProxyHandshakeTimeout
-        case noResult
-        case channelUnexpectedlyInactive
-        case droppedWrites
-    }
-
-    final class Storage: Sendable {
-        fileprivate let details: Details
-        let file: String
-        let line: UInt
-
-        fileprivate init(error details: Details, file: String, line: UInt) {
-            self.details = details
-            self.file = file
-            self.line = line
-        }
-    }
-
-    fileprivate let store: Storage
-
-    fileprivate init(error: Details, file: String, line: UInt) {
-        self.store = Storage(error: error, file: file, line: line)
-    }
-
-    /// Proxy response status `407` indicates that authentication is required
-    public static func proxyAuthenticationRequired(file: String = #file, line: UInt = #line) -> HTTPProxyError {
-        HTTPProxyError(error: .proxyAuthenticationRequired, file: file, line: line)
-    }
-
-    /// Proxy response contains unexpected status
-    public static func invalidProxyResponseHead(_ head: HTTPResponseHead, file: String = #file, line: UInt = #line) -> HTTPProxyError {
-        HTTPProxyError(error: .invalidProxyResponseHead(head: head), file: file, line: line)
-    }
-
-    /// Proxy response contains unexpected body
-    public static func invalidProxyResponse(file: String = #file, line: UInt = #line) -> HTTPProxyError {
-        HTTPProxyError(error: .invalidProxyResponse, file: file, line: line)
-    }
-
-    /// Connection has been closed for ongoing request
-    public static func remoteConnectionClosed(file: String = #file, line: UInt = #line) -> HTTPProxyError {
-        HTTPProxyError(error: .remoteConnectionClosed, file: file, line: line)
-    }
-
-    /// Proxy connection handshake has timed out
-    public static func httpProxyHandshakeTimeout(file: String = #file, line: UInt = #line) -> HTTPProxyError {
-        HTTPProxyError(error: .httpProxyHandshakeTimeout, file: file, line: line)
-    }
-
-    /// Handler was removed before we received a result for the request
-    public static func noResult(file: String = #file, line: UInt = #line) -> HTTPProxyError {
-        HTTPProxyError(error: .noResult, file: file, line: line)
-    }
-
-    /// Handler became unexpectedly inactive before a connection was made
-    public static func channelUnexpectedlyInactive(file: String = #file, line: UInt = #line) -> HTTPProxyError {
-        HTTPProxyError(error: .channelUnexpectedlyInactive, file: file, line: line)
-    }
-
-    public static func droppedWrites(file: String = #file, line: UInt = #line) -> HTTPProxyError {
-        HTTPProxyError(error: .droppedWrites, file: file, line: line)
-    }
-
-    fileprivate var errorCode: Int {
-        switch self.store.details {
-        case .proxyAuthenticationRequired:
-            return 0
-        case .invalidProxyResponseHead:
-            return 1
-        case .invalidProxyResponse:
-            return 2
-        case .remoteConnectionClosed:
-            return 3
-        case .httpProxyHandshakeTimeout:
-            return 4
-        case .noResult:
-            return 5
-        case .channelUnexpectedlyInactive:
-            return 6
-        case .droppedWrites:
-            return 7
-        }
-    }
-}
-
-extension HTTPProxyError: Hashable {
-    // compare only the kind of error, not the associated response head
-    public static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.errorCode == rhs.errorCode
-    }
-
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(self.errorCode)
-    }
+/// Error thrown by ``HTTP1ProxyConnectHandler``
+enum HTTPProxyError: String, Error {
+    case proxyAuthenticationRequired
+    case invalidProxyResponseHead
+    case invalidProxyResponse
+    case remoteConnectionClosed
+    case httpProxyHandshakeTimeout
+    case noResult
+    case channelUnexpectedlyInactive
+    case droppedWrites
 }
 
 extension HTTPProxyError: CustomStringConvertible {
-    public var description: String {
-        "\(self.store.details.description) (\(self.store.file): \(self.store.line))"
-    }
-}
-
-extension HTTPProxyError.Details: CustomStringConvertible {
     var description: String {
         switch self {
         case .proxyAuthenticationRequired:
             return "Proxy Authentication Required"
-        case .invalidProxyResponseHead(let head):
-            return "Invalid Proxy Response Head: \(head)"
+        case .invalidProxyResponseHead:
+            return "Invalid Proxy Response Head"
         case .invalidProxyResponse:
             return "Invalid Proxy Response"
         case .remoteConnectionClosed:

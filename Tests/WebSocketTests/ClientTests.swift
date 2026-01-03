@@ -2,7 +2,7 @@
 //
 // This source file is part of the Hummingbird server framework project
 //
-// Copyright (c) 2024-2025 the Hummingbird authors
+// Copyright (c) 2024-2026 the Hummingbird authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -16,12 +16,14 @@ import HTTPTypes
 import Logging
 import NIOCore
 import NIOEmbedded
+import NIOHTTP1
 import NIOSSL
-import NIOWebSocket
 import Testing
 
 @testable import NIOWebSocket
 @testable import WSClient
+
+let magicWebSocketGUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
 struct WebSocketClientTests {
     /// Read HTTP headers from request. Assumes request has no body
@@ -53,7 +55,8 @@ struct WebSocketClientTests {
             handler: { _, _, _ in },
             url: "ws://localhost:8080/ws",
             configuration: .init(),
-            tlsConfiguration: nil
+            tlsConfiguration: nil,
+            proxySettings: nil
         )
         let setup = try await channel.eventLoop.submit {
             wsChannel.setup(channel: channel, logger: logger)
@@ -83,6 +86,86 @@ struct WebSocketClientTests {
             Issue.record()
             return
         }
+    }
+
+    @Test
+    func testProxyUpgrade() async throws {
+        let logger = {
+            var logger = Logger(label: "client")
+            logger.logLevel = .trace
+            return logger
+        }()
+        let channel = NIOAsyncTestingChannel()
+        let wsChannel = try WebSocketClientChannel(
+            handler: { _, _, _ in },
+            url: "ws://localhost:8080/ws",
+            configuration: .init(),
+            tlsConfiguration: nil,
+            proxySettings: .init(host: "localhost", port: 8081, connectHeaders: [.userAgent: "WSTests"], timeout: .seconds(30))
+        )
+        let setup = try await channel.eventLoop.submit {
+            wsChannel.setup(channel: channel, logger: logger)
+        }.get()
+        try await channel.connect(to: try SocketAddress(ipAddress: "127.0.0.1", port: 8081)).get()
+        var outbound = try await channel.waitForOutboundWrite(as: ByteBuffer.self)
+        let (proxyHead, proxyHeaders) = readHTTPRequest(from: outbound)
+        #expect(proxyHead == "CONNECT localhost:8080 HTTP/1.1")
+        #expect(proxyHeaders[.userAgent] == "WSTests")
+        let proxyResponse = "HTTP/1.1 200 Ok\r\n\r\n"
+        try await channel.writeInbound(ByteBuffer(string: proxyResponse))
+
+        outbound = try await channel.waitForOutboundWrite(as: ByteBuffer.self)
+        let (head, headers) = readHTTPRequest(from: outbound)
+        #expect(head == "GET /ws HTTP/1.1")
+        #expect(headers[.origin] == "ws://localhost")
+        #expect(headers[.connection] == "upgrade")
+        #expect(headers[.upgrade] == "websocket")
+        #expect(headers[.secWebSocketVersion] == "13")
+        let key = try #require(headers[.secWebSocketKey])
+
+        var hasher = SHA1()
+        hasher.update(string: key)
+        hasher.update(string: magicWebSocketGUID)
+        let acceptValue = String(_base64Encoding: hasher.finish())
+
+        let response = "HTTP/1.1 101 Switching Protocols\r\nConnection: upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Accept: \(acceptValue)\r\n\r\n"
+        try await channel.writeInbound(ByteBuffer(string: response))
+
+        let value = try await setup.get()
+        let upgradeResult = try await value.get()
+        guard case .websocket(_, _) = upgradeResult else {
+            Issue.record()
+            return
+        }
+    }
+
+    @Test
+    func testProxyFail() async throws {
+        let logger = {
+            var logger = Logger(label: "client")
+            logger.logLevel = .trace
+            return logger
+        }()
+        let channel = NIOAsyncTestingChannel()
+        let wsChannel = try WebSocketClientChannel(
+            handler: { _, _, _ in },
+            url: "ws://localhost:8080/ws",
+            configuration: .init(),
+            tlsConfiguration: nil,
+            proxySettings: .init(host: "localhost", port: 8081)
+        )
+        let setup = try await channel.eventLoop.submit {
+            wsChannel.setup(channel: channel, logger: logger)
+        }.get()
+        try await channel.connect(to: try SocketAddress(ipAddress: "127.0.0.1", port: 8081)).get()
+        let outbound = try await channel.waitForOutboundWrite(as: ByteBuffer.self)
+        let (proxyHead, _) = readHTTPRequest(from: outbound)
+        #expect(proxyHead == "CONNECT localhost:8080 HTTP/1.1")
+        let proxyResponse = "HTTP/1.1 400 Bad Request\r\n\r\n"
+        await #expect(throws: HTTPProxyError.self) {
+            try await channel.writeInbound(ByteBuffer(string: proxyResponse))
+        }
+        await #expect(throws: WebSocketClientError.proxyHandshakeInvalidResponse) { try await setup.get() }
     }
 
     @Test func testEchoServer() async throws {

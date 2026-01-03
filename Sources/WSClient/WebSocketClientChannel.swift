@@ -2,7 +2,7 @@
 //
 // This source file is part of the Hummingbird server framework project
 //
-// Copyright (c) 2024 the Hummingbird authors
+// Copyright (c) 2024-2026 the Hummingbird authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -32,30 +32,96 @@ struct WebSocketClientChannel: ClientConnectionChannel {
     let url: URI
     let handler: WebSocketDataHandler<WebSocketClient.Context>
     let configuration: WebSocketClientConfiguration
+    let proxySettings: WebSocketProxySettings?
     let sslContext: NIOSSLContext?
 
     init(
         handler: @escaping WebSocketDataHandler<WebSocketClient.Context>,
         url: URI,
         configuration: WebSocketClientConfiguration,
-        tlsConfiguration: TLSConfiguration?
+        tlsConfiguration: TLSConfiguration?,
+        proxySettings: WebSocketProxySettings?
     ) throws {
         self.url = url
         self.handler = handler
         self.configuration = configuration
+        self.proxySettings = proxySettings
         self.sslContext = try tlsConfiguration.map { try NIOSSLContext(configuration: $0) }
     }
 
     func setup(channel: any Channel, logger: Logger) -> EventLoopFuture<Value> {
-        channel.eventLoop.makeCompletedFuture {
-            guard var host = url.host else { throw WebSocketClientError.invalidURL }
-            guard let (hostHeader, originHeader) = Self.urlHostAndOriginHeaders(for: url) else { throw WebSocketClientError.invalidURL }
-            let urlPath = Self.urlPath(for: url)
-
-            if let proxy = self.configuration.proxySettings {
-                host = proxy.host
+        guard let host = url.host else { return channel.eventLoop.makeFailedFuture(WebSocketClientError.invalidURL) }
+        if let proxy = self.proxySettings {
+            let requiresTLS = self.url.scheme == .wss || self.url.scheme == .https
+            let port = self.url.port ?? (requiresTLS ? 443 : 80)
+            let connectFuture = setupHTTPProxy(
+                channel: channel,
+                logger: logger,
+                targetHost: host,
+                targetPort: port,
+                connectHeaders: .init(proxy.connectHeaders),
+                deadline: .now() + .init(proxy.timeout)
+            )
+            return connectFuture.flatMap {
+                setupWSUpgrade(channel: channel, logger: logger)
             }
+        } else {
+            return setupWSUpgrade(channel: channel, logger: logger)
+        }
+    }
 
+    func setupHTTPProxy(
+        channel: any Channel,
+        logger: Logger,
+        targetHost: String,
+        targetPort: Int,
+        connectHeaders: HTTPHeaders,
+        deadline: NIODeadline
+    ) -> EventLoopFuture<Void> {
+        let promise = channel.eventLoop.makePromise(of: Void.self)
+        let requestEncoder = HTTPRequestEncoder(configuration: .init())
+        let responseDecoder = ByteToMessageHandler(
+            HTTPResponseDecoder(leftOverBytesStrategy: .forwardBytes)
+        )
+        let proxyHandler = HTTP1ProxyConnectHandler(
+            targetHost: targetHost,
+            targetPort: targetPort,
+            headers: connectHeaders,
+            deadline: deadline,
+            promise: promise
+        )
+        do {
+            try channel.pipeline.syncOperations.addHandler(requestEncoder, name: "RequestEncoder")
+            try channel.pipeline.syncOperations.addHandler(responseDecoder, name: "ResponseDecoder")
+            try channel.pipeline.syncOperations.addHandler(proxyHandler)
+        } catch {
+            promise.fail(error)
+        }
+        return promise.futureResult.flatMapErrorThrowing { error in
+            switch error {
+            case HTTPProxyError.httpProxyHandshakeTimeout:
+                throw WebSocketClientError.proxyHandshakeTimeout
+            case HTTPProxyError.invalidProxyResponse, HTTPProxyError.invalidProxyResponseHead:
+                throw WebSocketClientError.proxyHandshakeInvalidResponse
+            case is HTTPProxyError:
+                throw WebSocketClientError.proxyHandshakeFailed
+            default:
+                throw error
+            }
+        }.flatMap {
+            channel.pipeline.removeHandler(name: "RequestEncoder")
+        }.flatMap {
+            channel.pipeline.removeHandler(name: "ResponseDecoder")
+        }
+    }
+
+    func setupWSUpgrade(channel: any Channel, logger: Logger) -> EventLoopFuture<Value> {
+        guard let host = url.host else { return channel.eventLoop.makeFailedFuture(WebSocketClientError.invalidURL) }
+        guard let (hostHeader, originHeader) = Self.urlHostAndOriginHeaders(for: url) else {
+            return channel.eventLoop.makeFailedFuture(WebSocketClientError.invalidURL)
+        }
+        let urlPath = Self.urlPath(for: url)
+        return channel.eventLoop.makeCompletedFuture {
             let upgrader = NIOTypedWebSocketClientUpgrader<UpgradeResult>(
                 maxFrameSize: self.configuration.maxFrameSize,
                 upgradePipelineHandler: { channel, head in
@@ -111,29 +177,9 @@ struct WebSocketClientChannel: ClientConnectionChannel {
                 let sslHandler = try NIOSSLClientHandler(context: sslContext, serverHostname: self.configuration.sniHostname ?? host)
                 try channel.pipeline.syncOperations.addHandler(sslHandler, position: .first)
             }
-            let negotiationResultFuture = try channel.pipeline.syncOperations.configureUpgradableHTTPClientPipeline(
+            return try channel.pipeline.syncOperations.configureUpgradableHTTPClientPipeline(
                 configuration: pipelineConfiguration
             )
-            if let proxy = self.configuration.proxySettings {
-                let requiresTLS = self.url.scheme == .wss || self.url.scheme == .https
-                let port = self.url.port ?? (requiresTLS ? 443 : 80)
-                let promise = channel.eventLoop.makePromise(of: Void.self)
-                let negotiationResultPromise = channel.eventLoop.makePromise(of: UpgradeResult.self)
-                let proxyHandler = HTTP1ProxyConnectHandler(
-                    targetHost: host,
-                    targetPort: port,
-                    headers: HTTPHeaders(proxy.connectHeaders),
-                    deadline: .now() + .init(proxy.timeout),
-                    promise: promise
-                )
-                let upgradeHandler = try channel.pipeline.syncOperations.handler(type: NIOTypedHTTPClientUpgradeHandler<Value>.self)
-                try channel.pipeline.syncOperations.addHandler(proxyHandler, position: .before(upgradeHandler))
-
-                promise.futureResult.cascadeFailure(to: negotiationResultPromise)
-                negotiationResultFuture.cascade(to: negotiationResultPromise)
-                return negotiationResultPromise.futureResult
-            }
-            return negotiationResultFuture
         }
     }
 
