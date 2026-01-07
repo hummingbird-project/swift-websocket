@@ -63,12 +63,19 @@ public struct WebSocketClientConfiguration: Sendable {
 
 /// WebSocket client proxy settings
 public struct WebSocketProxySettings: Sendable {
+    /// Type of proxy
+    public enum ProxyType: Sendable {
+        /// SOCKS proxy
+        case socks
+        /// HTTP proxy
+        case http(connectHeaders: HTTPFields = [:])
+    }
     /// Proxy endpoint hostname
     public var host: String
     /// Proxy port
     public var port: Int
-    /// Headers sent with CONNECT request
-    public var connectHeaders: HTTPFields
+    /// Proxy type
+    public var type: ProxyType
     /// Timeout for CONNECT response
     public var timeout: Duration
 
@@ -76,17 +83,17 @@ public struct WebSocketProxySettings: Sendable {
     /// - Parameters:
     ///   - host: Proxy endpoint host name
     ///   - port: Proxy endoint port
-    ///   - connectHeaders: Headers send with CONNECT
+    ///   - type: Proxy type HTTP or SOCKS
     ///   - timeout: Timeout for CONNECT request
     public init(
         host: String,
         port: Int,
-        connectHeaders: HTTPFields = [:],
+        type: ProxyType,
         timeout: Duration = .seconds(30)
     ) {
         self.host = host
         self.port = port
-        self.connectHeaders = connectHeaders
+        self.type = type
         self.timeout = timeout
     }
 }

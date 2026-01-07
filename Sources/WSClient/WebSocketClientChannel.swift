@@ -17,6 +17,7 @@ import Logging
 import NIOCore
 import NIOHTTP1
 import NIOHTTPTypesHTTP1
+import NIOSOCKS
 import NIOSSL
 import NIOWebSocket
 @_spi(WSInternal) import WSCore
@@ -50,19 +51,34 @@ struct WebSocketClientChannel: ClientConnectionChannel {
     }
 
     func setup(channel: any Channel, logger: Logger) -> EventLoopFuture<Value> {
-        guard let host = url.host else { return channel.eventLoop.makeFailedFuture(WebSocketClientError.invalidURL) }
         if let proxy = self.proxySettings {
+            guard let host = url.host else { return channel.eventLoop.makeFailedFuture(WebSocketClientError.invalidURL) }
             let requiresTLS = self.url.scheme == .wss || self.url.scheme == .https
             let port = self.url.port ?? (requiresTLS ? 443 : 80)
-            return setupHTTPProxy(
-                channel: channel,
-                logger: logger,
-                targetHost: host,
-                targetPort: port,
-                connectHeaders: .init(proxy.connectHeaders),
-                deadline: .now() + .init(proxy.timeout),
-                onConnect: self.setupWSUpgrade
-            )
+
+            return
+                switch proxy.type
+            {
+            case .http(let connectHeaders):
+                setupHTTPProxy(
+                    channel: channel,
+                    logger: logger,
+                    targetHost: host,
+                    targetPort: port,
+                    connectHeaders: .init(connectHeaders),
+                    deadline: .now() + .init(proxy.timeout),
+                    onConnect: self.setupWSUpgrade
+                )
+            case .socks:
+                setupSOCKSProxy(
+                    channel: channel,
+                    logger: logger,
+                    targetHost: host,
+                    targetPort: port,
+                    deadline: .now() + .init(proxy.timeout),
+                    onConnect: self.setupWSUpgrade
+                )
+            }
         } else {
             return channel.eventLoop.makeCompletedFuture {
                 try setupWSUpgrade(channel: channel, logger: logger)
@@ -127,6 +143,55 @@ struct WebSocketClientChannel: ClientConnectionChannel {
             try channel.pipeline.syncOperations.addHandler(requestEncoder, name: "RequestEncoder")
             try channel.pipeline.syncOperations.addHandler(responseDecoder, name: "ResponseDecoder")
             try channel.pipeline.syncOperations.addHandler(proxyHandler)
+            return upgradePromise.futureResult
+        }
+    }
+
+    func setupSOCKSProxy(
+        channel: any Channel,
+        logger: Logger,
+        targetHost: String,
+        targetPort: Int,
+        deadline: NIODeadline,
+        onConnect: @Sendable @escaping (any Channel, Logger) throws -> Value
+    ) -> EventLoopFuture<Value> {
+        let connectPromise = channel.eventLoop.makePromise(of: Void.self)
+        let upgradePromise = channel.eventLoop.makePromise(of: UpgradeResult.self)
+        let socksConnectHandler = SOCKSClientHandler(targetAddress: .domain(targetHost, port: targetPort))
+        let socksEventHandler = SOCKSEventsHandler(deadline: deadline, promise: connectPromise)
+
+        connectPromise.futureResult.whenComplete { result in
+            switch result {
+            case .failure(let error):
+                switch error {
+                case HTTPProxyError.httpProxyHandshakeTimeout:
+                    upgradePromise.fail(WebSocketClientError.proxyHandshakeTimeout)
+                case HTTPProxyError.invalidProxyResponse, HTTPProxyError.invalidProxyResponseHead:
+                    upgradePromise.fail(WebSocketClientError.proxyHandshakeInvalidResponse)
+                case is HTTPProxyError:
+                    upgradePromise.fail(WebSocketClientError.proxyHandshakeFailed)
+                default:
+                    upgradePromise.fail(error)
+                }
+            case .success:
+                channel.pipeline.removeHandler(name: "EventHandler").whenComplete { result in
+                    switch result {
+                    case .failure(let error):
+                        upgradePromise.fail(error)
+                    case .success:
+                        do {
+                            let upgradeResult = try onConnect(channel, logger)
+                            upgradePromise.completeWith(upgradeResult)
+                        } catch {
+                            upgradePromise.fail(error)
+                        }
+                    }
+                }
+            }
+        }
+        return channel.eventLoop.makeCompletedFuture {
+            try channel.pipeline.syncOperations.addHandler(socksConnectHandler)
+            try channel.pipeline.syncOperations.addHandler(socksEventHandler, name: "EventHandler")
             return upgradePromise.futureResult
         }
     }

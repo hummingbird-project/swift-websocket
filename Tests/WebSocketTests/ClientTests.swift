@@ -89,7 +89,7 @@ struct WebSocketClientTests {
     }
 
     @Test
-    func testProxyUpgrade() async throws {
+    func testHTTPProxyUpgrade() async throws {
         let logger = {
             var logger = Logger(label: "client")
             logger.logLevel = .trace
@@ -101,7 +101,7 @@ struct WebSocketClientTests {
             url: "ws://localhost:8080/ws",
             configuration: .init(),
             tlsConfiguration: nil,
-            proxySettings: .init(host: "localhost", port: 8081, connectHeaders: [.userAgent: "WSTests"], timeout: .seconds(30))
+            proxySettings: .init(host: "localhost", port: 8081, type: .http(connectHeaders: [.userAgent: "WSTests"]), timeout: .seconds(30))
         )
         let setup = try await channel.eventLoop.submit {
             wsChannel.setup(channel: channel, logger: logger)
@@ -140,7 +140,7 @@ struct WebSocketClientTests {
     }
 
     @Test
-    func testProxyFail() async throws {
+    func testHTTPProxyFail() async throws {
         let logger = {
             var logger = Logger(label: "client")
             logger.logLevel = .trace
@@ -152,7 +152,7 @@ struct WebSocketClientTests {
             url: "ws://localhost:8080/ws",
             configuration: .init(),
             tlsConfiguration: nil,
-            proxySettings: .init(host: "localhost", port: 8081)
+            proxySettings: .init(host: "localhost", port: 8081, type: .http())
         )
         let setup = try await channel.eventLoop.submit {
             wsChannel.setup(channel: channel, logger: logger)
