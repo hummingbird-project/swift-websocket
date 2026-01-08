@@ -165,7 +165,8 @@ struct WebSocketClientTests {
         await #expect(throws: HTTPProxyError.self) {
             try await channel.writeInbound(ByteBuffer(string: proxyResponse))
         }
-        await #expect(throws: WebSocketClientError.proxyHandshakeInvalidResponse) { try await setup.get() }
+        let upgradeFuture = try await setup.get()
+        await #expect(throws: WebSocketClientError.proxyHandshakeInvalidResponse) { try await upgradeFuture.get() }
     }
 
     @Test func testEchoServer() async throws {

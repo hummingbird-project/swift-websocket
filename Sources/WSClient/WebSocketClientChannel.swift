@@ -54,19 +54,19 @@ struct WebSocketClientChannel: ClientConnectionChannel {
         if let proxy = self.proxySettings {
             let requiresTLS = self.url.scheme == .wss || self.url.scheme == .https
             let port = self.url.port ?? (requiresTLS ? 443 : 80)
-            let connectFuture = setupHTTPProxy(
+            return setupHTTPProxy(
                 channel: channel,
                 logger: logger,
                 targetHost: host,
                 targetPort: port,
                 connectHeaders: .init(proxy.connectHeaders),
-                deadline: .now() + .init(proxy.timeout)
+                deadline: .now() + .init(proxy.timeout),
+                onConnect: self.setupWSUpgrade
             )
-            return connectFuture.flatMap {
-                setupWSUpgrade(channel: channel, logger: logger)
-            }
         } else {
-            return setupWSUpgrade(channel: channel, logger: logger)
+            return channel.eventLoop.makeCompletedFuture {
+                try setupWSUpgrade(channel: channel, logger: logger)
+            }
         }
     }
 
@@ -76,9 +76,11 @@ struct WebSocketClientChannel: ClientConnectionChannel {
         targetHost: String,
         targetPort: Int,
         connectHeaders: HTTPHeaders,
-        deadline: NIODeadline
-    ) -> EventLoopFuture<Void> {
-        let promise = channel.eventLoop.makePromise(of: Void.self)
+        deadline: NIODeadline,
+        onConnect: @Sendable @escaping (any Channel, Logger) throws -> Value
+    ) -> EventLoopFuture<Value> {
+        let connectPromise = channel.eventLoop.makePromise(of: Void.self)
+        let upgradePromise = channel.eventLoop.makePromise(of: UpgradeResult.self)
         let requestEncoder = HTTPRequestEncoder(configuration: .init())
         let responseDecoder = ByteToMessageHandler(
             HTTPResponseDecoder(leftOverBytesStrategy: .forwardBytes)
@@ -88,99 +90,111 @@ struct WebSocketClientChannel: ClientConnectionChannel {
             targetPort: targetPort,
             headers: connectHeaders,
             deadline: deadline,
-            promise: promise
+            promise: connectPromise
         )
-        do {
+        connectPromise.futureResult.whenComplete { result in
+            switch result {
+            case .failure(let error):
+                switch error {
+                case HTTPProxyError.httpProxyHandshakeTimeout:
+                    upgradePromise.fail(WebSocketClientError.proxyHandshakeTimeout)
+                case HTTPProxyError.invalidProxyResponse, HTTPProxyError.invalidProxyResponseHead:
+                    upgradePromise.fail(WebSocketClientError.proxyHandshakeInvalidResponse)
+                case is HTTPProxyError:
+                    upgradePromise.fail(WebSocketClientError.proxyHandshakeFailed)
+                default:
+                    upgradePromise.fail(error)
+                }
+            case .success:
+                channel.pipeline.removeHandler(name: "RequestEncoder").flatMap {
+                    channel.pipeline.removeHandler(name: "ResponseDecoder")
+                }.whenComplete { result in
+                    switch result {
+                    case .failure(let error):
+                        upgradePromise.fail(error)
+                    case .success:
+                        do {
+                            let upgradeResult = try onConnect(channel, logger)
+                            upgradePromise.completeWith(upgradeResult)
+                        } catch {
+                            upgradePromise.fail(error)
+                        }
+                    }
+                }
+            }
+        }
+        return channel.eventLoop.makeCompletedFuture {
             try channel.pipeline.syncOperations.addHandler(requestEncoder, name: "RequestEncoder")
             try channel.pipeline.syncOperations.addHandler(responseDecoder, name: "ResponseDecoder")
             try channel.pipeline.syncOperations.addHandler(proxyHandler)
-        } catch {
-            promise.fail(error)
-        }
-        return promise.futureResult.flatMapErrorThrowing { error in
-            switch error {
-            case HTTPProxyError.httpProxyHandshakeTimeout:
-                throw WebSocketClientError.proxyHandshakeTimeout
-            case HTTPProxyError.invalidProxyResponse, HTTPProxyError.invalidProxyResponseHead:
-                throw WebSocketClientError.proxyHandshakeInvalidResponse
-            case is HTTPProxyError:
-                throw WebSocketClientError.proxyHandshakeFailed
-            default:
-                throw error
-            }
-        }.flatMap {
-            channel.pipeline.removeHandler(name: "RequestEncoder")
-        }.flatMap {
-            channel.pipeline.removeHandler(name: "ResponseDecoder")
+            return upgradePromise.futureResult
         }
     }
 
-    func setupWSUpgrade(channel: any Channel, logger: Logger) -> EventLoopFuture<Value> {
-        guard let host = url.host else { return channel.eventLoop.makeFailedFuture(WebSocketClientError.invalidURL) }
+    func setupWSUpgrade(channel: any Channel, logger: Logger) throws -> Value {
+        guard let host = url.host else { throw WebSocketClientError.invalidURL }
         guard let (hostHeader, originHeader) = Self.urlHostAndOriginHeaders(for: url) else {
-            return channel.eventLoop.makeFailedFuture(WebSocketClientError.invalidURL)
+            throw WebSocketClientError.invalidURL
         }
         let urlPath = Self.urlPath(for: url)
-        return channel.eventLoop.makeCompletedFuture {
-            let upgrader = NIOTypedWebSocketClientUpgrader<UpgradeResult>(
-                maxFrameSize: self.configuration.maxFrameSize,
-                upgradePipelineHandler: { channel, head in
-                    channel.eventLoop.makeCompletedFuture {
-                        let asyncChannel = try NIOAsyncChannel<WebSocketFrame, WebSocketFrame>(wrappingChannelSynchronously: channel)
-                        // work out what extensions we should add based off the server response
-                        let headerFields = HTTPFields(head.headers, splitCookie: false)
-                        let extensions = try configuration.extensions.buildClientExtensions(from: headerFields)
-                        if extensions.count > 0 {
-                            logger.debug(
-                                "Enabled extensions",
-                                metadata: ["hb.ws.extensions": .string(extensions.map(\.name).joined(separator: ","))]
-                            )
-                        }
-                        return UpgradeResult.websocket(asyncChannel, extensions)
+        let upgrader = NIOTypedWebSocketClientUpgrader<UpgradeResult>(
+            maxFrameSize: self.configuration.maxFrameSize,
+            upgradePipelineHandler: { channel, head in
+                channel.eventLoop.makeCompletedFuture {
+                    let asyncChannel = try NIOAsyncChannel<WebSocketFrame, WebSocketFrame>(wrappingChannelSynchronously: channel)
+                    // work out what extensions we should add based off the server response
+                    let headerFields = HTTPFields(head.headers, splitCookie: false)
+                    let extensions = try configuration.extensions.buildClientExtensions(from: headerFields)
+                    if extensions.count > 0 {
+                        logger.debug(
+                            "Enabled extensions",
+                            metadata: ["hb.ws.extensions": .string(extensions.map(\.name).joined(separator: ","))]
+                        )
                     }
+                    return UpgradeResult.websocket(asyncChannel, extensions)
                 }
-            )
-
-            var headers = HTTPHeaders()
-            headers.replaceOrAdd(name: "Host", value: hostHeader)
-            headers.replaceOrAdd(name: "Origin", value: originHeader)
-            let additionalHeaders = HTTPHeaders(self.configuration.additionalHeaders)
-            headers.add(contentsOf: additionalHeaders)
-            // add websocket extensions to headers
-            headers.add(
-                contentsOf: self.configuration.extensions.compactMap {
-                    let requestHeaders = $0.clientRequestHeader()
-                    return requestHeaders != "" ? ("Sec-WebSocket-Extensions", requestHeaders) : nil
-                }
-            )
-
-            let requestHead = HTTPRequestHead(
-                version: .http1_1,
-                method: .GET,
-                uri: urlPath,
-                headers: headers
-            )
-
-            let clientUpgradeConfiguration = NIOTypedHTTPClientUpgradeConfiguration(
-                upgradeRequestHead: requestHead,
-                upgraders: [upgrader],
-                notUpgradingCompletionHandler: { channel in
-                    channel.eventLoop.makeCompletedFuture {
-                        UpgradeResult.notUpgraded
-                    }
-                }
-            )
-
-            var pipelineConfiguration = NIOUpgradableHTTPClientPipelineConfiguration(upgradeConfiguration: clientUpgradeConfiguration)
-            pipelineConfiguration.leftOverBytesStrategy = .forwardBytes
-            if let sslContext {
-                let sslHandler = try NIOSSLClientHandler(context: sslContext, serverHostname: self.configuration.sniHostname ?? host)
-                try channel.pipeline.syncOperations.addHandler(sslHandler, position: .first)
             }
-            return try channel.pipeline.syncOperations.configureUpgradableHTTPClientPipeline(
-                configuration: pipelineConfiguration
-            )
+        )
+
+        var headers = HTTPHeaders()
+        headers.replaceOrAdd(name: "Host", value: hostHeader)
+        headers.replaceOrAdd(name: "Origin", value: originHeader)
+        let additionalHeaders = HTTPHeaders(self.configuration.additionalHeaders)
+        headers.add(contentsOf: additionalHeaders)
+        // add websocket extensions to headers
+        headers.add(
+            contentsOf: self.configuration.extensions.compactMap {
+                let requestHeaders = $0.clientRequestHeader()
+                return requestHeaders != "" ? ("Sec-WebSocket-Extensions", requestHeaders) : nil
+            }
+        )
+
+        let requestHead = HTTPRequestHead(
+            version: .http1_1,
+            method: .GET,
+            uri: urlPath,
+            headers: headers
+        )
+
+        let clientUpgradeConfiguration = NIOTypedHTTPClientUpgradeConfiguration(
+            upgradeRequestHead: requestHead,
+            upgraders: [upgrader],
+            notUpgradingCompletionHandler: { channel in
+                channel.eventLoop.makeCompletedFuture {
+                    UpgradeResult.notUpgraded
+                }
+            }
+        )
+
+        var pipelineConfiguration = NIOUpgradableHTTPClientPipelineConfiguration(upgradeConfiguration: clientUpgradeConfiguration)
+        pipelineConfiguration.leftOverBytesStrategy = .forwardBytes
+        if let sslContext {
+            let sslHandler = try NIOSSLClientHandler(context: sslContext, serverHostname: self.configuration.sniHostname ?? host)
+            try channel.pipeline.syncOperations.addHandler(sslHandler, position: .first)
         }
+        return try channel.pipeline.syncOperations.configureUpgradableHTTPClientPipeline(
+            configuration: pipelineConfiguration
+        )
     }
 
     func handle(value: Value, logger: Logger) async throws -> WebSocketCloseFrame? {
