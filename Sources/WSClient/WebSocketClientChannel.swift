@@ -56,11 +56,10 @@ struct WebSocketClientChannel: ClientConnectionChannel {
             let requiresTLS = self.url.scheme == .wss || self.url.scheme == .https
             let port = self.url.port ?? (requiresTLS ? 443 : 80)
 
-            return
-                switch proxy.type
+            switch proxy.type
             {
             case .http(let connectHeaders):
-                setupHTTPProxy(
+                return setupHTTPProxy(
                     channel: channel,
                     logger: logger,
                     targetHost: host,
@@ -70,7 +69,7 @@ struct WebSocketClientChannel: ClientConnectionChannel {
                     onConnect: self.setupWSUpgrade
                 )
             case .socks:
-                setupSOCKSProxy(
+                return setupSOCKSProxy(
                     channel: channel,
                     logger: logger,
                     targetHost: host,
@@ -163,16 +162,7 @@ struct WebSocketClientChannel: ClientConnectionChannel {
         connectPromise.futureResult.whenComplete { result in
             switch result {
             case .failure(let error):
-                switch error {
-                case HTTPProxyError.httpProxyHandshakeTimeout:
-                    upgradePromise.fail(WebSocketClientError.proxyHandshakeTimeout)
-                case HTTPProxyError.invalidProxyResponse, HTTPProxyError.invalidProxyResponseHead:
-                    upgradePromise.fail(WebSocketClientError.proxyHandshakeInvalidResponse)
-                case is HTTPProxyError:
-                    upgradePromise.fail(WebSocketClientError.proxyHandshakeFailed)
-                default:
-                    upgradePromise.fail(error)
-                }
+                upgradePromise.fail(error)
             case .success:
                 channel.pipeline.removeHandler(name: "EventHandler").whenComplete { result in
                     switch result {
