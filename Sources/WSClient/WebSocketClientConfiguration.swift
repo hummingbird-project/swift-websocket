@@ -64,11 +64,17 @@ public struct WebSocketClientConfiguration: Sendable {
 /// WebSocket client proxy settings
 public struct WebSocketProxySettings: Sendable {
     /// Type of proxy
-    public enum ProxyType: Sendable {
+    public struct ProxyType: Sendable {
+        enum Base {
+            case socks
+            case http(connectHeaders: HTTPFields = [:])
+        }
+        let value: Base
+
         /// SOCKS proxy
-        case socks
+        public static var socks: ProxyType { .init(value: .socks) }
         /// HTTP proxy
-        case http(connectHeaders: HTTPFields = [:])
+        public static func http(connectHeaders: HTTPFields = [:]) -> ProxyType { .init(value: .http(connectHeaders: connectHeaders)) }
     }
     /// Proxy endpoint hostname
     public var host: String
