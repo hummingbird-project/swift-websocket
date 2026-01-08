@@ -57,7 +57,9 @@ final class SOCKSEventsHandler: ChannelInboundHandler, RemovableChannelHandler {
         case is SOCKSProxyEstablishedEvent:
             switch self.state {
             case .initialized:
-                preconditionFailure("How can we establish a SOCKS connection, if we are not connected?")
+                // TODO: remove once propagation of channelActive is added to SOCKSClientHandler
+                self.socksEstablishedPromise.succeed(())
+                context.fireUserInboundEventTriggered(event)
             case .socksEstablished:
                 preconditionFailure("`SOCKSProxyEstablishedEvent` must only be fired once.")
             case .channelActive(let scheduled):
