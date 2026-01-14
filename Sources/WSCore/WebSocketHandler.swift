@@ -240,7 +240,7 @@ public struct WebSocketCloseFrame: Sendable {
                 try await Task.sleep(for: time)
 
             case .closeConnection(let errorCode):
-                try await self.sendClose(code: errorCode, reason: "Ping timeout")
+                try await self.close(code: errorCode, reason: "Ping timeout")
                 try await self.channel.close()
                 return
 
@@ -281,7 +281,8 @@ public struct WebSocketCloseFrame: Sendable {
     func onPing(_ frame: WebSocketFrame) async throws {
         // a ping frame without the FIN flag is illegal
         guard frame.fin else {
-            self.channel.close(promise: nil)
+            try await self.close(code: .protocolError)
+            try await self.channel.close()
             return
         }
         switch self.stateMachine.receivedPing(frameData: frame.unmaskedData) {
@@ -290,6 +291,7 @@ public struct WebSocketCloseFrame: Sendable {
 
         case .protocolError:
             try await self.close(code: .protocolError)
+            try await self.channel.close()
 
         case .doNothing:
             break
@@ -300,7 +302,8 @@ public struct WebSocketCloseFrame: Sendable {
     func onPong(_ frame: WebSocketFrame) async throws {
         // a pong frame without the FIN flag is illegal
         guard frame.fin else {
-            self.channel.close(promise: nil)
+            try await self.close(code: .protocolError)
+            try await self.channel.close()
             return
         }
         self.stateMachine.receivedPong(frameData: frame.unmaskedData)
