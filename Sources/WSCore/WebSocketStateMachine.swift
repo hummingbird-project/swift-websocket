@@ -145,7 +145,7 @@ struct WebSocketStateMachine {
             return .pong(frameData)
 
         case .closing:
-            return .pong(frameData)
+            return .doNothing
 
         case .closed:
             return .doNothing
