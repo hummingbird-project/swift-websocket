@@ -195,7 +195,7 @@ public struct WebSocketCloseFrame: Sendable {
                     if case .closing = self.stateMachine.state {
                         group.addTask {
                             try await Task.sleep(for: self.configuration.closeTimeout)
-                            try await self.channel.close(mode: .input)
+                            try await self.channel.close()
                         }
                         // Close handshake. Wait for responding close or until inbound ends
                         while let frame = try await inboundIterator.next() {
@@ -241,7 +241,7 @@ public struct WebSocketCloseFrame: Sendable {
 
             case .closeConnection(let errorCode):
                 try await self.sendClose(code: errorCode, reason: "Ping timeout")
-                try await self.channel.close(mode: .input)
+                try await self.channel.close()
                 return
 
             case .stop:
