@@ -127,25 +127,23 @@ public struct WebSocketClient {
         guard let host = url.host else { throw WebSocketClientError.invalidURL }
         let requiresTLS = self.url.scheme == .wss || self.url.scheme == .https
         let port = self.url.port ?? (requiresTLS ? 443 : 80)
+
+        var tlsConfiguration: TLSConfiguration? = nil
         if requiresTLS {
             switch self.tlsConfiguration {
-            case .niossl(let tlsConfiguration):
-                let client = try ClientConnection(
-                    TLSClientChannel(
-                        WebSocketClientChannel(handler: handler, url: url, configuration: self.configuration),
-                        tlsConfiguration: tlsConfiguration,
-                        serverHostname: self.configuration.sniHostname ?? host
-                    ),
-                    address: .hostname(host, port: port),
-                    eventLoopGroup: self.eventLoopGroup,
-                    logger: self.logger
-                )
-                return try await client.run()
-
+            case .niossl(let config):
+                tlsConfiguration = config
+            case .none:
+                tlsConfiguration = TLSConfiguration.makeClientConfiguration()
             #if canImport(Network)
             case .ts(let tlsOptions):
                 let client = try ClientConnection(
-                    WebSocketClientChannel(handler: handler, url: url, configuration: self.configuration),
+                    WebSocketClientChannel(
+                        handler: handler,
+                        url: url,
+                        configuration: self.configuration,
+                        tlsConfiguration: nil
+                    ),
                     address: .hostname(host, port: port),
                     transportServicesTLSOptions: tlsOptions,
                     eventLoopGroup: self.eventLoopGroup,
@@ -154,36 +152,20 @@ public struct WebSocketClient {
                 return try await client.run()
 
             #endif
-            case .none:
-                let client = try ClientConnection(
-                    TLSClientChannel(
-                        WebSocketClientChannel(
-                            handler: handler,
-                            url: url,
-                            configuration: self.configuration
-                        ),
-                        tlsConfiguration: TLSConfiguration.makeClientConfiguration(),
-                        serverHostname: self.configuration.sniHostname ?? host
-                    ),
-                    address: .hostname(host, port: port),
-                    eventLoopGroup: self.eventLoopGroup,
-                    logger: self.logger
-                )
-                return try await client.run()
             }
-        } else {
-            let client = try ClientConnection(
-                WebSocketClientChannel(
-                    handler: handler,
-                    url: url,
-                    configuration: self.configuration
-                ),
-                address: .hostname(host, port: port),
-                eventLoopGroup: self.eventLoopGroup,
-                logger: self.logger
-            )
-            return try await client.run()
         }
+        let client = try ClientConnection(
+            WebSocketClientChannel(
+                handler: handler,
+                url: url,
+                configuration: self.configuration,
+                tlsConfiguration: tlsConfiguration
+            ),
+            address: .hostname(host, port: port),
+            eventLoopGroup: self.eventLoopGroup,
+            logger: self.logger
+        )
+        return try await client.run()
     }
 }
 
