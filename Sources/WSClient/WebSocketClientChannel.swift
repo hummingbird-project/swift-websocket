@@ -17,6 +17,7 @@ import Logging
 import NIOCore
 import NIOHTTP1
 import NIOHTTPTypesHTTP1
+import NIOSSL
 import NIOWebSocket
 @_spi(WSInternal) import WSCore
 
@@ -28,23 +29,28 @@ struct WebSocketClientChannel: ClientConnectionChannel {
 
     typealias Value = EventLoopFuture<UpgradeResult>
 
-    let urlPath: String
-    let hostHeader: String
-    let originHeader: String
+    let url: URI
     let handler: WebSocketDataHandler<WebSocketClient.Context>
     let configuration: WebSocketClientConfiguration
+    let sslContext: NIOSSLContext?
 
-    init(handler: @escaping WebSocketDataHandler<WebSocketClient.Context>, url: URI, configuration: WebSocketClientConfiguration) throws {
-        guard let (hostHeader, originHeader) = Self.urlHostAndOriginHeaders(for: url) else { throw WebSocketClientError.invalidURL }
-        self.hostHeader = hostHeader
-        self.originHeader = originHeader
-        self.urlPath = Self.urlPath(for: url)
+    init(
+        handler: @escaping WebSocketDataHandler<WebSocketClient.Context>,
+        url: URI,
+        configuration: WebSocketClientConfiguration,
+        tlsConfiguration: TLSConfiguration?
+    ) throws {
+        self.url = url
         self.handler = handler
         self.configuration = configuration
+        self.sslContext = try tlsConfiguration.map { try NIOSSLContext(configuration: $0) }
     }
 
     func setup(channel: any Channel, logger: Logger) -> NIOCore.EventLoopFuture<Value> {
         channel.eventLoop.makeCompletedFuture {
+            guard let host = url.host else { throw WebSocketClientError.invalidURL }
+            guard let (hostHeader, originHeader) = Self.urlHostAndOriginHeaders(for: url) else { throw WebSocketClientError.invalidURL }
+            let urlPath = Self.urlPath(for: url)
             let upgrader = NIOTypedWebSocketClientUpgrader<UpgradeResult>(
                 maxFrameSize: self.configuration.maxFrameSize,
                 upgradePipelineHandler: { channel, head in
@@ -65,8 +71,8 @@ struct WebSocketClientChannel: ClientConnectionChannel {
             )
 
             var headers = HTTPHeaders()
-            headers.replaceOrAdd(name: "Host", value: self.hostHeader)
-            headers.replaceOrAdd(name: "Origin", value: self.originHeader)
+            headers.replaceOrAdd(name: "Host", value: hostHeader)
+            headers.replaceOrAdd(name: "Origin", value: originHeader)
             let additionalHeaders = HTTPHeaders(self.configuration.additionalHeaders)
             headers.add(contentsOf: additionalHeaders)
             // add websocket extensions to headers
@@ -80,7 +86,7 @@ struct WebSocketClientChannel: ClientConnectionChannel {
             let requestHead = HTTPRequestHead(
                 version: .http1_1,
                 method: .GET,
-                uri: self.urlPath,
+                uri: urlPath,
                 headers: headers
             )
 
@@ -96,11 +102,13 @@ struct WebSocketClientChannel: ClientConnectionChannel {
 
             var pipelineConfiguration = NIOUpgradableHTTPClientPipelineConfiguration(upgradeConfiguration: clientUpgradeConfiguration)
             pipelineConfiguration.leftOverBytesStrategy = .forwardBytes
-            let negotiationResultFuture = try channel.pipeline.syncOperations.configureUpgradableHTTPClientPipeline(
+            if let sslContext {
+                let sslHandler = try NIOSSLClientHandler(context: sslContext, serverHostname: self.configuration.sniHostname ?? host)
+                try channel.pipeline.syncOperations.addHandler(sslHandler, position: .first)
+            }
+            return try channel.pipeline.syncOperations.configureUpgradableHTTPClientPipeline(
                 configuration: pipelineConfiguration
             )
-
-            return negotiationResultFuture
         }
     }
 
