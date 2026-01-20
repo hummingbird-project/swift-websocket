@@ -56,8 +56,7 @@ struct WebSocketClientChannel: ClientConnectionChannel {
             let requiresTLS = self.url.scheme == .wss || self.url.scheme == .https
             let port = self.url.port ?? (requiresTLS ? 443 : 80)
 
-            switch proxy.type.value
-            {
+            switch proxy.type.value {
             case .http(let connectHeaders):
                 return setupHTTPProxy(
                     channel: channel,
