@@ -19,7 +19,7 @@ final class SOCKSEventsHandler: ChannelInboundHandler, RemovableChannelHandler {
         // final success state
         case socksEstablished
         // final success state
-        case failed(Error)
+        case failed(any Error)
     }
 
     private var socksEstablishedPromise: EventLoopPromise<Void>
@@ -70,7 +70,7 @@ final class SOCKSEventsHandler: ChannelInboundHandler, RemovableChannelHandler {
         }
     }
 
-    func errorCaught(context: ChannelHandlerContext, error: Error) {
+    func errorCaught(context: ChannelHandlerContext, error: any Error) {
         switch self.state {
         case .initialized:
             self.state = .failed(error)

@@ -6,11 +6,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-import Foundation
 import HTTPTypes
 import Logging
 import NIOCore
 import NIOWebSocket
+
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
 
 /// Basic context implementation of ``WebSocketContext``.
 public struct WebSocketExtensionContext: Sendable {

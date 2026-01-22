@@ -1,9 +1,17 @@
-// swift-tools-version: 5.10
+// swift-tools-version: 6.0
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
 
-let swiftSettings: [SwiftSetting] = [.enableExperimentalFeature("StrictConcurrency=complete")]
+var defaultSwiftSettings: [SwiftSetting] = [
+    .swiftLanguageMode(.v6),
+
+    // https://github.com/swiftlang/swift-evolution/blob/main/proposals/0335-existential-any.md
+    .enableUpcomingFeature("ExistentialAny"),
+
+    // https://github.com/swiftlang/swift-evolution/blob/main/proposals/0444-member-import-visibility.md
+    .enableUpcomingFeature("MemberImportVisibility"),
+]
 
 let package = Package(
     name: "swift-websocket",
@@ -38,7 +46,7 @@ let package = Package(
                 .product(name: "NIOTransportServices", package: "swift-nio-transport-services"),
                 .product(name: "NIOWebSocket", package: "swift-nio"),
             ],
-            swiftSettings: swiftSettings
+            swiftSettings: defaultSwiftSettings
         ),
         .target(
             name: "WSCore",
@@ -48,7 +56,7 @@ let package = Package(
                 .product(name: "NIOWebSocket", package: "swift-nio"),
                 .product(name: "ServiceLifecycle", package: "swift-service-lifecycle"),
             ],
-            swiftSettings: swiftSettings
+            swiftSettings: defaultSwiftSettings
         ),
         .target(
             name: "WSCompression",
@@ -56,7 +64,7 @@ let package = Package(
                 .byName(name: "WSCore"),
                 .product(name: "CompressNIO", package: "compress-nio"),
             ],
-            swiftSettings: swiftSettings
+            swiftSettings: defaultSwiftSettings
         ),
 
         .testTarget(
@@ -67,6 +75,5 @@ let package = Package(
                 .product(name: "NIOEmbedded", package: "swift-nio"),
             ]
         ),
-    ],
-    swiftLanguageVersions: [.v5, .version("6")]
+    ]
 )

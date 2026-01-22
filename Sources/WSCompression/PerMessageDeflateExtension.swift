@@ -86,7 +86,7 @@ struct PerMessageDeflateExtensionBuilder: WebSocketExtensionBuilder {
     /// Create server PerMessageDeflateExtension based off request headers
     /// - Parameters:
     ///   - request: Client request
-    func serverExtension(from request: WebSocketExtensionHTTPParameters) throws -> (WebSocketExtension)? {
+    func serverExtension(from request: WebSocketExtensionHTTPParameters) throws -> (any WebSocketExtension)? {
         let configuration = self.responseConfiguration(to: request)
         return try PerMessageDeflateExtension(configuration: configuration)
     }
@@ -94,7 +94,7 @@ struct PerMessageDeflateExtensionBuilder: WebSocketExtensionBuilder {
     /// Create client PerMessageDeflateExtension based off response headers
     /// - Parameters:
     ///   - response: Server response
-    func clientExtension(from response: WebSocketExtensionHTTPParameters) throws -> WebSocketExtension? {
+    func clientExtension(from response: WebSocketExtensionHTTPParameters) throws -> (any WebSocketExtension)? {
         let clientMaxWindowParam = response.parameters["client_max_window_bits"]?.integer
         let clientNoContextTakeoverParam = response.parameters["client_no_context_takeover"] != nil
         let serverMaxWindowParam = response.parameters["server_max_window_bits"]?.integer

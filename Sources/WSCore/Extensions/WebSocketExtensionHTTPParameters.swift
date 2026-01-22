@@ -8,6 +8,12 @@
 
 import HTTPTypes
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
+
 /// Parsed parameters from `Sec-WebSocket-Extensions` header
 public struct WebSocketExtensionHTTPParameters: Sendable, Equatable {
     /// A single parameter
@@ -43,21 +49,21 @@ public struct WebSocketExtensionHTTPParameters: Sendable, Equatable {
 
     /// initialise WebSocket extension parameters from string
     init?(from header: some StringProtocol) {
-        let split = header.split(separator: ";", omittingEmptySubsequences: true).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }[...]
+        let split = header.split(separator: ";", omittingEmptySubsequences: true).map { $0.trimmingWhitespace() }[...]
         if let name = split.first {
-            self.name = name
+            self.name = String(name)
         } else {
             return nil
         }
         var index = split.index(after: split.startIndex)
         var parameters: [String: Parameter] = [:]
         while index != split.endIndex {
-            let keyValue = split[index].split(separator: "=", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            let keyValue = split[index].split(separator: "=", maxSplits: 1).map { $0.trimmingWhitespace() }
             if let key = keyValue.first {
                 if keyValue.count > 1 {
-                    parameters[key] = .value(keyValue[1])
+                    parameters[String(key)] = .value(String(keyValue[1]))
                 } else {
-                    parameters[key] = .null
+                    parameters[String(key)] = .null
                 }
             }
             index = split.index(after: index)
@@ -80,5 +86,16 @@ extension WebSocketExtensionHTTPParameters {
     package init(_ name: String, parameters: [String: Parameter]) {
         self.name = name
         self.parameters = parameters
+    }
+}
+
+extension StringProtocol {
+    func trimmingWhitespace() -> SubSequence {
+        guard let first = self.firstIndex(where: { !$0.isWhitespace }),
+            let last = self.lastIndex(where: { !$0.isWhitespace })
+        else {
+            return self[self.startIndex...self.startIndex]
+        }
+        return self[first...last]
     }
 }

@@ -42,7 +42,7 @@ public struct ClientConnection<ClientChannel: ClientConnectionChannel>: Sendable
     typealias ChannelResult = ClientChannel.Value
     /// Logger used by Server
     let logger: Logger
-    let eventLoopGroup: EventLoopGroup
+    let eventLoopGroup: any EventLoopGroup
     let clientChannel: ClientChannel
     let address: Address
     #if canImport(Network)
@@ -53,7 +53,7 @@ public struct ClientConnection<ClientChannel: ClientConnectionChannel>: Sendable
     public init(
         _ clientChannel: ClientChannel,
         address: Address,
-        eventLoopGroup: EventLoopGroup = MultiThreadedEventLoopGroup.singleton,
+        eventLoopGroup: any EventLoopGroup = MultiThreadedEventLoopGroup.singleton,
         logger: Logger
     ) {
         self.clientChannel = clientChannel
@@ -93,7 +93,7 @@ public struct ClientConnection<ClientChannel: ClientConnectionChannel>: Sendable
     /// Connect to server
     func makeClient(clientChannel: ClientChannel, address: Address) async throws -> ChannelResult {
         // get bootstrap
-        let bootstrap: ClientBootstrapProtocol
+        let bootstrap: any ClientBootstrapProtocol
         #if canImport(Network)
         if let tsBootstrap = self.createTSBootstrap() {
             bootstrap = tsBootstrap
@@ -161,12 +161,12 @@ protocol ClientBootstrapProtocol {
     func connect<Output: Sendable>(
         host: String,
         port: Int,
-        channelInitializer: @escaping @Sendable (Channel) -> EventLoopFuture<Output>
+        channelInitializer: @escaping @Sendable (any Channel) -> EventLoopFuture<Output>
     ) async throws -> Output
 
     func connect<Output: Sendable>(
         unixDomainSocketPath: String,
-        channelInitializer: @escaping @Sendable (Channel) -> EventLoopFuture<Output>
+        channelInitializer: @escaping @Sendable (any Channel) -> EventLoopFuture<Output>
     ) async throws -> Output
 }
 

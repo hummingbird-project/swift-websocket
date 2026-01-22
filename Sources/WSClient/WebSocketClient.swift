@@ -59,7 +59,7 @@ public struct WebSocketClient {
     /// proxy settings
     let proxySettings: WebSocketProxySettings?
     /// EventLoopGroup to use
-    let eventLoopGroup: EventLoopGroup
+    let eventLoopGroup: any EventLoopGroup
     /// Logger
     let logger: Logger
     /// TLS configuration
@@ -78,7 +78,7 @@ public struct WebSocketClient {
         url: String,
         configuration: WebSocketClientConfiguration = .init(),
         tlsConfiguration: TLSConfiguration? = nil,
-        eventLoopGroup: EventLoopGroup = MultiThreadedEventLoopGroup.singleton,
+        eventLoopGroup: any EventLoopGroup = MultiThreadedEventLoopGroup.singleton,
         logger: Logger,
         handler: @escaping WebSocketDataHandler<Context>
     ) {
@@ -106,7 +106,7 @@ public struct WebSocketClient {
         configuration: WebSocketClientConfiguration = .init(),
         tlsConfiguration: TLSConfiguration? = nil,
         proxySettings: WebSocketProxySettings,
-        eventLoopGroup: EventLoopGroup = MultiThreadedEventLoopGroup.singleton,
+        eventLoopGroup: any EventLoopGroup = MultiThreadedEventLoopGroup.singleton,
         logger: Logger,
         handler: @escaping WebSocketDataHandler<Context>
     ) {
@@ -215,7 +215,7 @@ extension WebSocketClient {
         url: String,
         configuration: WebSocketClientConfiguration = .init(),
         tlsConfiguration: TLSConfiguration? = nil,
-        eventLoopGroup: EventLoopGroup = MultiThreadedEventLoopGroup.singleton,
+        eventLoopGroup: any EventLoopGroup = MultiThreadedEventLoopGroup.singleton,
         logger: Logger,
         handler: @escaping WebSocketDataHandler<Context>
     ) async throws -> WebSocketCloseFrame? {
@@ -246,7 +246,7 @@ extension WebSocketClient {
         configuration: WebSocketClientConfiguration = .init(),
         tlsConfiguration: TLSConfiguration? = nil,
         proxySettings: WebSocketProxySettings,
-        eventLoopGroup: EventLoopGroup = MultiThreadedEventLoopGroup.singleton,
+        eventLoopGroup: any EventLoopGroup = MultiThreadedEventLoopGroup.singleton,
         logger: Logger,
         handler: @escaping WebSocketDataHandler<Context>
     ) async throws -> WebSocketCloseFrame? {
