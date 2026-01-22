@@ -113,7 +113,6 @@ final class HTTP1ProxyConnectHandler: ChannelDuplexHandler, RemovableChannelHand
                     context.flush()
                 }
             }
-
         }
 
         context.leavePipeline(removalToken: removalToken)
