@@ -20,7 +20,7 @@ public protocol ClientConnectionChannel: Sendable {
     ///   - channel: Child channel
     ///   - logger: Logger used during setup
     /// - Returns: Object to process input/output on child channel
-    func setup(channel: Channel, logger: Logger) -> EventLoopFuture<Value>
+    func setup(channel: any Channel, logger: Logger) -> EventLoopFuture<Value>
 
     /// handle messages being passed down the channel pipeline
     /// - Parameters:

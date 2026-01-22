@@ -6,6 +6,9 @@ import PackageDescription
 var defaultSwiftSettings: [SwiftSetting] = [
     .swiftLanguageMode(.v6),
 
+    // https://github.com/swiftlang/swift-evolution/blob/main/proposals/0335-existential-any.md
+    .enableUpcomingFeature("ExistentialAny"),
+
     // https://github.com/swiftlang/swift-evolution/blob/main/proposals/0444-member-import-visibility.md
     .enableUpcomingFeature("MemberImportVisibility"),
 ]

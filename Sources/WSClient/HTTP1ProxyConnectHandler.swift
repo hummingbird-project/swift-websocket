@@ -44,7 +44,7 @@ final class HTTP1ProxyConnectHandler: ChannelDuplexHandler, RemovableChannelHand
         // transitions to `.completed` or `.failed`
         case headReceived(Scheduled<Void>)
         // final error state
-        case failed(Error)
+        case failed(any Error)
         // final success state
         case completed
     }
