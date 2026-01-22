@@ -2,7 +2,7 @@
 //
 // This source file is part of the Hummingbird server framework project
 //
-// Copyright (c) 2024-2025 the Hummingbird authors
+// Copyright (c) 2024-2026 the Hummingbird authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -62,6 +62,8 @@ public struct WebSocketClient {
     let handler: WebSocketDataHandler<Context>
     /// configuration
     let configuration: WebSocketClientConfiguration
+    /// proxy settings
+    let proxySettings: WebSocketProxySettings?
     /// EventLoopGroup to use
     let eventLoopGroup: EventLoopGroup
     /// Logger
@@ -89,6 +91,35 @@ public struct WebSocketClient {
         self.url = .init(url)
         self.handler = handler
         self.configuration = configuration
+        self.proxySettings = nil
+        self.eventLoopGroup = eventLoopGroup
+        self.logger = logger
+        self.tlsConfiguration = tlsConfiguration.map { .niossl($0) }
+    }
+
+    /// Initialize websocket client
+    ///
+    /// - Parametes:
+    ///   - url: URL of websocket
+    ///   - tlsConfiguration: TLS configuration for connection to websocket server
+    ///   - proxySettings: Proxy connection settings
+    ///   - handler: WebSocket data handler
+    ///   - maxFrameSize: Max frame size for a single packet
+    ///   - eventLoopGroup: EventLoopGroup to run WebSocket client on
+    ///   - logger: Logger
+    public init(
+        url: String,
+        configuration: WebSocketClientConfiguration = .init(),
+        tlsConfiguration: TLSConfiguration? = nil,
+        proxySettings: WebSocketProxySettings,
+        eventLoopGroup: EventLoopGroup = MultiThreadedEventLoopGroup.singleton,
+        logger: Logger,
+        handler: @escaping WebSocketDataHandler<Context>
+    ) {
+        self.url = .init(url)
+        self.handler = handler
+        self.configuration = configuration
+        self.proxySettings = proxySettings
         self.eventLoopGroup = eventLoopGroup
         self.logger = logger
         self.tlsConfiguration = tlsConfiguration.map { .niossl($0) }
@@ -115,6 +146,7 @@ public struct WebSocketClient {
         self.url = .init(url)
         self.handler = handler
         self.configuration = configuration
+        self.proxySettings = nil
         self.eventLoopGroup = eventLoopGroup
         self.logger = logger
         self.tlsConfiguration = .ts(transportServicesTLSOptions)
@@ -124,10 +156,13 @@ public struct WebSocketClient {
     /// Connect and run handler
     /// - Returns: WebSocket close frame details if server returned any
     @discardableResult public func run() async throws -> WebSocketCloseFrame? {
-        guard let host = url.host else { throw WebSocketClientError.invalidURL }
+        guard var host = url.host else { throw WebSocketClientError.invalidURL }
         let requiresTLS = self.url.scheme == .wss || self.url.scheme == .https
-        let port = self.url.port ?? (requiresTLS ? 443 : 80)
-
+        var port = self.url.port ?? (requiresTLS ? 443 : 80)
+        if let proxySettings = self.proxySettings {
+            host = proxySettings.host
+            port = proxySettings.port
+        }
         var tlsConfiguration: TLSConfiguration? = nil
         if requiresTLS {
             switch self.tlsConfiguration {
@@ -142,7 +177,8 @@ public struct WebSocketClient {
                         handler: handler,
                         url: url,
                         configuration: self.configuration,
-                        tlsConfiguration: nil
+                        tlsConfiguration: nil,
+                        proxySettings: nil
                     ),
                     address: .hostname(host, port: port),
                     transportServicesTLSOptions: tlsOptions,
@@ -159,7 +195,8 @@ public struct WebSocketClient {
                 handler: handler,
                 url: url,
                 configuration: self.configuration,
-                tlsConfiguration: tlsConfiguration
+                tlsConfiguration: tlsConfiguration,
+                proxySettings: self.proxySettings
             ),
             address: .hostname(host, port: port),
             eventLoopGroup: self.eventLoopGroup,
@@ -192,6 +229,38 @@ extension WebSocketClient {
             url: url,
             configuration: configuration,
             tlsConfiguration: tlsConfiguration,
+            eventLoopGroup: eventLoopGroup,
+            logger: logger,
+            handler: handler
+        )
+        return try await ws.run()
+    }
+
+    /// Create websocket client, connect and handle connection
+    ///
+    /// - Parametes:
+    ///   - url: URL of websocket
+    ///   - configuration: WebSocket client configuration
+    ///   - tlsConfiguration: TLS configuration
+    ///   - maxFrameSize: Max frame size for a single packet
+    ///   - eventLoopGroup: EventLoopGroup to run WebSocket client on
+    ///   - logger: Logger
+    ///   - process: Closure handling webSocket
+    /// - Returns: WebSocket close frame details if server returned any
+    @discardableResult public static func connect(
+        url: String,
+        configuration: WebSocketClientConfiguration = .init(),
+        tlsConfiguration: TLSConfiguration? = nil,
+        proxySettings: WebSocketProxySettings,
+        eventLoopGroup: EventLoopGroup = MultiThreadedEventLoopGroup.singleton,
+        logger: Logger,
+        handler: @escaping WebSocketDataHandler<Context>
+    ) async throws -> WebSocketCloseFrame? {
+        let ws = self.init(
+            url: url,
+            configuration: configuration,
+            tlsConfiguration: tlsConfiguration,
+            proxySettings: proxySettings,
             eventLoopGroup: eventLoopGroup,
             logger: logger,
             handler: handler

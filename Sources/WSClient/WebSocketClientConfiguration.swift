@@ -2,7 +2,7 @@
 //
 // This source file is part of the Hummingbird server framework project
 //
-// Copyright (c) 2023-2025 the Hummingbird authors
+// Copyright (c) 2023-2026 the Hummingbird authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -13,6 +13,8 @@
 //===----------------------------------------------------------------------===//
 
 import HTTPTypes
+import NIOCore
+import NIOSSL
 import WSCore
 
 /// Configuration for a client connecting to a WebSocket
@@ -56,5 +58,35 @@ public struct WebSocketClientConfiguration: Sendable {
         self.autoPing = autoPing
         self.validateUTF8 = validateUTF8
         self.sniHostname = sniHostname
+    }
+}
+
+/// WebSocket client proxy settings
+public struct WebSocketProxySettings: Sendable {
+    /// Proxy endpoint hostname
+    public var host: String
+    /// Proxy port
+    public var port: Int
+    /// Headers sent with CONNECT request
+    public var connectHeaders: HTTPFields
+    /// Timeout for CONNECT response
+    public var timeout: Duration
+
+    /// Initialize ProxySettings
+    /// - Parameters:
+    ///   - host: Proxy endpoint host name
+    ///   - port: Proxy endoint port
+    ///   - connectHeaders: Headers send with CONNECT
+    ///   - timeout: Timeout for CONNECT request
+    public init(
+        host: String,
+        port: Int,
+        connectHeaders: HTTPFields = [:],
+        timeout: Duration = .seconds(30)
+    ) {
+        self.host = host
+        self.port = port
+        self.connectHeaders = connectHeaders
+        self.timeout = timeout
     }
 }
