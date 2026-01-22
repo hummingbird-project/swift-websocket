@@ -85,7 +85,7 @@ public struct WebSocketCloseFrame: Sendable {
         }
     }
 
-    let channel: Channel
+    let channel: any Channel
     var outbound: NIOAsyncChannelOutboundWriter<WebSocketFrame>
     let type: WebSocketType
     let configuration: Configuration
@@ -93,7 +93,7 @@ public struct WebSocketCloseFrame: Sendable {
     var stateMachine: WebSocketStateMachine
 
     private init(
-        channel: Channel,
+        channel: any Channel,
         outbound: NIOAsyncChannelOutboundWriter<WebSocketFrame>,
         type: WebSocketType,
         configuration: Configuration,
@@ -173,7 +173,7 @@ public struct WebSocketCloseFrame: Sendable {
                     handler: self
                 )
                 let closeCode: WebSocketErrorCode
-                var clientError: Error?
+                var clientError: (any Error)?
                 do {
                     // handle websocket data and text
                     try await handler(webSocketInbound, webSocketOutbound, context)
