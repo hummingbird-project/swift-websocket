@@ -15,6 +15,12 @@ import NIOTransportServices
 import NIOWebSocket
 import WSCore
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
+
 /// WebSocket client
 ///
 /// Connect to HTTP server with WebSocket upgrade available.
@@ -153,7 +159,7 @@ public struct WebSocketClient {
         guard var host = url.host else { throw WebSocketClientError.invalidURL }
         let requiresTLS = self.url.scheme == .wss || self.url.scheme == .https
         var port = self.url.port ?? (requiresTLS ? 443 : 80)
-        if let proxySettings = self.proxySettings {
+        if let proxySettings = self.proxySettings ?? self.getProxyEnvironmentValues(requiresTLS: requiresTLS) {
             host = proxySettings.host
             port = proxySettings.port
         }
@@ -197,6 +203,23 @@ public struct WebSocketClient {
             logger: self.logger
         )
         return try await client.run()
+    }
+
+    private func getProxyEnvironmentValues(requiresTLS: Bool) -> WebSocketProxySettings? {
+        guard self.configuration.readProxyEnvironmentVariables == true else { return nil }
+        let environment = ProcessInfo.processInfo.environment
+        let proxy =
+            if !requiresTLS {
+                environment["http_proxy"]
+            } else {
+                environment["HTTPS_PROXY"] ?? environment["https_proxy"] ?? environment["http_proxy"]
+            }
+        guard let proxy else { return nil }
+        let proxyURL = URI(proxy)
+        guard proxyURL.scheme == .http else { return nil }
+        guard let host = proxyURL.host else { return nil }
+        guard let port = proxyURL.port else { return nil }
+        return .init(host: host, port: port, type: .http())
     }
 }
 

@@ -71,7 +71,7 @@ public struct ClientConnection<ClientChannel: ClientConnectionChannel>: Sendable
         _ clientChannel: ClientChannel,
         address: Address,
         transportServicesTLSOptions: TSTLSOptions,
-        eventLoopGroup: EventLoopGroup = MultiThreadedEventLoopGroup.singleton,
+        eventLoopGroup: any EventLoopGroup = MultiThreadedEventLoopGroup.singleton,
         logger: Logger
     ) throws {
         self.clientChannel = clientChannel
