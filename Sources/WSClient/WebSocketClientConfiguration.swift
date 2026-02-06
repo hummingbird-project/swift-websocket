@@ -27,6 +27,8 @@ public struct WebSocketClientConfiguration: Sendable {
     public var validateUTF8: Bool
     /// Hostname used during TLS handshake
     public var sniHostname: String?
+    /// Read proxy info from http_proxy and HTTPS_PROXY environment variables
+    public var readProxyEnvironmentVariables: Bool
 
     /// Initialize WebSocketClient configuration
     ///   - Paramters
@@ -36,6 +38,7 @@ public struct WebSocketClientConfiguration: Sendable {
     ///     - autoPing: Automatic Ping configuration
     ///     - validateUTF8: Should text be checked to see if it is valid UTF8
     ///     - sniHostname: Hostname used during TLS handshake
+    ///     - readProxyEnvironmentVariables: Read proxy info from http_proxy and HTTPS_PROXY environment variables
     public init(
         maxFrameSize: Int = (1 << 14),
         additionalHeaders: HTTPFields = .init(),
@@ -43,7 +46,8 @@ public struct WebSocketClientConfiguration: Sendable {
         closeTimeout: Duration = .seconds(15),
         autoPing: AutoPingSetup = .disabled,
         validateUTF8: Bool = false,
-        sniHostname: String? = nil
+        sniHostname: String? = nil,
+        readProxyEnvironmentVariables: Bool = false
     ) {
         self.maxFrameSize = maxFrameSize
         self.additionalHeaders = additionalHeaders
@@ -52,6 +56,7 @@ public struct WebSocketClientConfiguration: Sendable {
         self.autoPing = autoPing
         self.validateUTF8 = validateUTF8
         self.sniHostname = sniHostname
+        self.readProxyEnvironmentVariables = readProxyEnvironmentVariables
     }
 }
 
