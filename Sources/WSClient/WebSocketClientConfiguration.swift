@@ -129,6 +129,27 @@ public struct WebSocketProxySettings: Sendable {
                 environment["https_proxy"] ?? environment["HTTPS_PROXY"] ?? environment["http_proxy"]
             }
         guard let proxy else { return nil }
+        // Check if URL matches domain in no_proxy environment variable
+        if let noProxy = environment["no_proxy"] ?? environment["NO_PROXY"] {
+            let filters = noProxy.split(separator: ",")
+            for filter in filters {
+                var filter = filter[...]
+                // drop whitespace
+                filter = filter.trimmingPrefix { $0.isWhitespace }
+                if let lastIndex = filter.lastIndex(of: " ") {
+                    filter = filter[..<lastIndex]
+                }
+                // Drop leading dot so `.github.com` will match `github.com`
+                if filter.first == "." {
+                    filter = filter.dropFirst()
+                }
+                if filter == "*" {
+                    return nil
+                } else if url.host?.hasSuffix(filter) == true {
+                    return nil
+                }
+            }
+        }
         let proxyURL = URI(proxy)
         guard proxyURL.scheme == .http else { return nil }
         guard let host = proxyURL.host else { return nil }
