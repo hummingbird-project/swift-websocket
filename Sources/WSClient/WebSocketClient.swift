@@ -161,7 +161,7 @@ public struct WebSocketClient {
                 host = proxyHost
                 port = proxyPort
             case .environment:
-                if let (proxyHost, proxyPort) = WebSocketProxySettings.getProxyEnvironmentValues(requiresTLS: requiresTLS) {
+                if let (proxyHost, proxyPort) = WebSocketProxySettings.getProxyEnvironmentValues(for: self.url) {
                     self.logger.debug("Using proxy: \(proxyHost):\(proxyPort)")
                     proxySettings = .init(host: proxyHost, port: proxyPort, type: .http(), timeout: validProxySettings.timeout)
                     host = proxyHost

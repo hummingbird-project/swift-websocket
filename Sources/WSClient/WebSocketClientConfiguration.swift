@@ -119,7 +119,8 @@ public struct WebSocketProxySettings: Sendable {
     }
 
     /// Get proxy settings from environment
-    static func getProxyEnvironmentValues(requiresTLS: Bool) -> (host: String, port: Int)? {
+    static func getProxyEnvironmentValues(for url: URI) -> (host: String, port: Int)? {
+        let requiresTLS = url.scheme == .wss || url.scheme == .https
         let environment = ProcessInfo.processInfo.environment
         let proxy =
             if !requiresTLS {
