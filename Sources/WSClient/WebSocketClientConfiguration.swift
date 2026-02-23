@@ -11,6 +11,12 @@ import NIOCore
 import NIOSSL
 import WSCore
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
+
 /// Configuration for a client connecting to a WebSocket
 public struct WebSocketClientConfiguration: Sendable {
     /// Max websocket frame size that can be sent/received
@@ -27,8 +33,6 @@ public struct WebSocketClientConfiguration: Sendable {
     public var validateUTF8: Bool
     /// Hostname used during TLS handshake
     public var sniHostname: String?
-    /// Read proxy info from http_proxy and HTTPS_PROXY environment variables
-    public var readProxyEnvironmentVariables: Bool
 
     /// Initialize WebSocketClient configuration
     ///   - Paramters
@@ -38,7 +42,6 @@ public struct WebSocketClientConfiguration: Sendable {
     ///     - autoPing: Automatic Ping configuration
     ///     - validateUTF8: Should text be checked to see if it is valid UTF8
     ///     - sniHostname: Hostname used during TLS handshake
-    ///     - readProxyEnvironmentVariables: Read proxy info from http_proxy and HTTPS_PROXY environment variables
     public init(
         maxFrameSize: Int = (1 << 14),
         additionalHeaders: HTTPFields = .init(),
@@ -47,7 +50,6 @@ public struct WebSocketClientConfiguration: Sendable {
         autoPing: AutoPingSetup = .disabled,
         validateUTF8: Bool = false,
         sniHostname: String? = nil,
-        readProxyEnvironmentVariables: Bool = false
     ) {
         self.maxFrameSize = maxFrameSize
         self.additionalHeaders = additionalHeaders
@@ -56,7 +58,6 @@ public struct WebSocketClientConfiguration: Sendable {
         self.autoPing = autoPing
         self.validateUTF8 = validateUTF8
         self.sniHostname = sniHostname
-        self.readProxyEnvironmentVariables = readProxyEnvironmentVariables
     }
 }
 
@@ -75,10 +76,12 @@ public struct WebSocketProxySettings: Sendable {
         /// HTTP proxy
         public static func http(connectHeaders: HTTPFields = [:]) -> ProxyType { .init(value: .http(connectHeaders: connectHeaders)) }
     }
-    /// Proxy endpoint hostname
-    public var host: String
-    /// Proxy port
-    public var port: Int
+    public enum ProxyAddress: Sendable {
+        case hostname(String, port: Int)
+        case environment
+    }
+    /// Network address
+    public var address: ProxyAddress
     /// Proxy type
     public var type: ProxyType
     /// Timeout for CONNECT response
@@ -96,9 +99,39 @@ public struct WebSocketProxySettings: Sendable {
         type: ProxyType,
         timeout: Duration = .seconds(30)
     ) {
-        self.host = host
-        self.port = port
+        self.address = .hostname(host, port: port)
         self.type = type
         self.timeout = timeout
+    }
+
+    ///  Return proxy settings that will use environment variables for settings
+    /// - Parameter timeout: Timeout for CONNECT request
+    /// - Returns: proxy settings
+    public static func environment(timeout: Duration = .seconds(30)) -> WebSocketProxySettings {
+        .init(address: .environment, type: .http(), timeout: timeout)
+    }
+
+    /// Internal init
+    internal init(address: ProxyAddress, type: ProxyType, timeout: Duration) {
+        self.address = address
+        self.type = type
+        self.timeout = timeout
+    }
+
+    /// Get proxy settings from environment
+    static func getProxyEnvironmentValues(requiresTLS: Bool) -> (host: String, port: Int)? {
+        let environment = ProcessInfo.processInfo.environment
+        let proxy =
+            if !requiresTLS {
+                environment["http_proxy"]
+            } else {
+                environment["https_proxy"] ?? environment["HTTPS_PROXY"] ?? environment["http_proxy"]
+            }
+        guard let proxy else { return nil }
+        let proxyURL = URI(proxy)
+        guard proxyURL.scheme == .http else { return nil }
+        guard let host = proxyURL.host else { return nil }
+        guard let port = proxyURL.port else { return nil }
+        return (host: host, port: port)
     }
 }
