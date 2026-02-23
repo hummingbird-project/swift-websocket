@@ -49,7 +49,7 @@ public struct WebSocketClientConfiguration: Sendable {
         closeTimeout: Duration = .seconds(15),
         autoPing: AutoPingSetup = .disabled,
         validateUTF8: Bool = false,
-        sniHostname: String? = nil,
+        sniHostname: String? = nil
     ) {
         self.maxFrameSize = maxFrameSize
         self.additionalHeaders = additionalHeaders
