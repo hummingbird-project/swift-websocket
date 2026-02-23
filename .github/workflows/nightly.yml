@@ -3,6 +3,9 @@ name: Swift nightly build
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 env:
   FUZZING_SERVER: autobahn
 jobs:
