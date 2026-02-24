@@ -321,12 +321,14 @@ public struct WebSocketCloseFrame: Sendable {
 
     func receivedClose(_ frame: WebSocketFrame) async throws {
         guard frame.reservedBits.isEmpty else {
-            try await self.close(code: .protocolError, reason: nil)
+            // ignore errors from sending close as the other side may have closed the connection already
+            try? await self.close(code: .protocolError, reason: nil)
             return
         }
         switch self.stateMachine.receivedClose(frameData: frame.unmaskedData, validateUTF8: self.configuration.validateUTF8) {
         case .sendClose(let errorCode):
-            try await self.sendClose(code: errorCode, reason: nil)
+            // ignore errors from sending close as the other side may have closed the connection already
+            try? await self.sendClose(code: errorCode, reason: nil)
             // Only server should initiate a connection close. Clients should wait for the
             // server to close the connection when it receives the WebSocket close packet
             // See https://www.rfc-editor.org/rfc/rfc6455#section-7.1.1
