@@ -194,7 +194,7 @@ public struct WebSocketCloseFrame: Sendable {
                         // Close handshake. Wait for responding close or until inbound ends
                         while let frame = try await inboundIterator.next() {
                             if case .connectionClose = frame.opcode {
-                                try await self.receivedClose(frame)
+                                await self.receivedClose(frame)
                                 // only the server can close the connection, so clients
                                 // should continue reading from inbound until it is closed
                                 if type == .server {
@@ -319,7 +319,7 @@ public struct WebSocketCloseFrame: Sendable {
         }
     }
 
-    func receivedClose(_ frame: WebSocketFrame) async throws {
+    func receivedClose(_ frame: WebSocketFrame) async {
         guard frame.reservedBits.isEmpty else {
             // ignore errors from sending close as the other side may have closed the connection already
             try? await self.close(code: .protocolError, reason: nil)
