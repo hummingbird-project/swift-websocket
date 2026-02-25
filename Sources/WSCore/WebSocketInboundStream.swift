@@ -54,7 +54,7 @@ public final class WebSocketInboundStream: AsyncSequence, Sendable {
                     self.handler.logger.trace("Received \(frame.traceDescription)")
                     switch frame.opcode {
                     case .connectionClose:
-                        try await self.handler.receivedClose(frame)
+                        await self.handler.receivedClose(frame)
                         return nil
                     case .ping:
                         try await self.handler.onPing(frame)
