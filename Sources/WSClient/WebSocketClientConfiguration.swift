@@ -33,6 +33,8 @@ public struct WebSocketClientConfiguration: Sendable {
     public var validateUTF8: Bool
     /// Hostname used during TLS handshake
     public var sniHostname: String?
+    /// Ignore unclean SSL shutdown errors
+    public var ignoreUncleanSSLShutdownErrors: Bool
 
     /// Initialize WebSocketClient configuration
     ///   - Paramters
@@ -49,7 +51,8 @@ public struct WebSocketClientConfiguration: Sendable {
         closeTimeout: Duration = .seconds(15),
         autoPing: AutoPingSetup = .disabled,
         validateUTF8: Bool = false,
-        sniHostname: String? = nil
+        sniHostname: String? = nil,
+        ignoreUncleanSSLShutdownErrors: Bool = false
     ) {
         self.maxFrameSize = maxFrameSize
         self.additionalHeaders = additionalHeaders
@@ -58,6 +61,7 @@ public struct WebSocketClientConfiguration: Sendable {
         self.autoPing = autoPing
         self.validateUTF8 = validateUTF8
         self.sniHostname = sniHostname
+        self.ignoreUncleanSSLShutdownErrors = ignoreUncleanSSLShutdownErrors
     }
 }
 

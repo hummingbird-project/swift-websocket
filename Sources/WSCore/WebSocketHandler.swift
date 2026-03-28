@@ -8,6 +8,7 @@
 
 import Logging
 import NIOCore
+import NIOSSL
 import NIOWebSocket
 import ServiceLifecycle
 
@@ -67,17 +68,20 @@ public struct WebSocketCloseFrame: Sendable {
         let validateUTF8: Bool
         let reservedBits: WebSocketFrame.ReservedBits
         let closeTimeout: Duration
+        let ignoreUncleanSSLShutdownErrors: Bool
 
         @_spi(WSInternal) public init(
             extensions: [any WebSocketExtension],
             autoPing: AutoPingSetup,
             closeTimeout: Duration = .seconds(15),
-            validateUTF8: Bool
+            validateUTF8: Bool,
+            ignoreUncleanSSLShutdownErrors: Bool = false
         ) {
             self.extensions = extensions
             self.autoPing = autoPing
             self.closeTimeout = closeTimeout
             self.validateUTF8 = validateUTF8
+            self.ignoreUncleanSSLShutdownErrors = ignoreUncleanSSLShutdownErrors
             // store reserved bits used by this handler
             self.reservedBits = extensions.reduce(.init()) { partialResult, `extension` in
                 partialResult.union(`extension`.reservedBits)
@@ -191,15 +195,21 @@ public struct WebSocketCloseFrame: Sendable {
                             try await Task.sleep(for: self.configuration.closeTimeout)
                             try await self.channel.close()
                         }
-                        // Close handshake. Wait for responding close or until inbound ends
-                        while let frame = try await inboundIterator.next() {
-                            if case .connectionClose = frame.opcode {
-                                await self.receivedClose(frame)
-                                // only the server can close the connection, so clients
-                                // should continue reading from inbound until it is closed
-                                if type == .server {
-                                    break
+                        do {
+                            // Close handshake. Wait for responding close or until inbound ends
+                            while let frame = try await inboundIterator.next() {
+                                if case .connectionClose = frame.opcode {
+                                    await self.receivedClose(frame)
+                                    // only the server can close the connection, so clients
+                                    // should continue reading from inbound until it is closed
+                                    if type == .server {
+                                        break
+                                    }
                                 }
+                            }
+                        } catch let error as NIOSSLError where error == .uncleanShutdown {
+                            if self.configuration.ignoreUncleanSSLShutdownErrors == false {
+                                throw error
                             }
                         }
                     }

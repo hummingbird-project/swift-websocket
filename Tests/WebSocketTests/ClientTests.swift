@@ -171,6 +171,7 @@ struct WebSocketClientTests {
         }()
         try await WebSocketClient.connect(
             url: "wss://echo.websocket.org/",
+            configuration: .init(ignoreUncleanSSLShutdownErrors: true),
             tlsConfiguration: TLSConfiguration.makeClientConfiguration(),
             logger: clientLogger
         ) { inbound, outbound, _ in
@@ -190,7 +191,7 @@ struct WebSocketClientTests {
         }()
         try await WebSocketClient.connect(
             url: "wss://echo.websocket.org/",
-            configuration: .init(sniHostname: "echo.websocket.org"),
+            configuration: .init(sniHostname: "echo.websocket.org", ignoreUncleanSSLShutdownErrors: true),
             tlsConfiguration: TLSConfiguration.makeClientConfiguration(),
             logger: clientLogger
         ) { inbound, outbound, _ in
