@@ -169,8 +169,11 @@ struct WebSocketClientTests {
             logger.logLevel = .trace
             return logger
         }()
+        var configuration = WebSocketClientConfiguration()
+        configuration.ignoreUncleanSSLShutdownErrors = true
         try await WebSocketClient.connect(
-            url: "wss://echo.websocket.org/",
+            url: "wss://echo.websocket.org",
+            configuration: configuration,
             tlsConfiguration: TLSConfiguration.makeClientConfiguration(),
             logger: clientLogger
         ) { inbound, outbound, _ in
@@ -188,9 +191,11 @@ struct WebSocketClientTests {
             logger.logLevel = .trace
             return logger
         }()
+        var configuration = WebSocketClientConfiguration(sniHostname: "echo.websocket.org")
+        configuration.ignoreUncleanSSLShutdownErrors = true
         try await WebSocketClient.connect(
             url: "wss://echo.websocket.org/",
-            configuration: .init(sniHostname: "echo.websocket.org"),
+            configuration: configuration,
             tlsConfiguration: TLSConfiguration.makeClientConfiguration(),
             logger: clientLogger
         ) { inbound, outbound, _ in
