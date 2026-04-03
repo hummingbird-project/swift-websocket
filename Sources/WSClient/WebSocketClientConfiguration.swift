@@ -51,8 +51,7 @@ public struct WebSocketClientConfiguration: Sendable {
         closeTimeout: Duration = .seconds(15),
         autoPing: AutoPingSetup = .disabled,
         validateUTF8: Bool = false,
-        sniHostname: String? = nil,
-        ignoreUncleanSSLShutdownErrors: Bool = false
+        sniHostname: String? = nil
     ) {
         self.maxFrameSize = maxFrameSize
         self.additionalHeaders = additionalHeaders
@@ -61,7 +60,7 @@ public struct WebSocketClientConfiguration: Sendable {
         self.autoPing = autoPing
         self.validateUTF8 = validateUTF8
         self.sniHostname = sniHostname
-        self.ignoreUncleanSSLShutdownErrors = ignoreUncleanSSLShutdownErrors
+        self.ignoreUncleanSSLShutdownErrors = false
     }
 }
 
