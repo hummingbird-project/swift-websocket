@@ -6,9 +6,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-import Logging
-import NIOCore
-import NIOPosix
+public import Logging
+public import NIOCore
+public import NIOPosix
 import NIOWebSocket
 
 #if canImport(Network)

@@ -9,7 +9,7 @@
 import CompressNIO
 import NIOCore
 import NIOWebSocket
-import WSCore
+public import WSCore
 
 /// PerMessageDeflate Websocket extension builder
 struct PerMessageDeflateExtensionBuilder: WebSocketExtensionBuilder {

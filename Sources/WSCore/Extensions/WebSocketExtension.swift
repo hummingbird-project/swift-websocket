@@ -7,9 +7,9 @@
 //
 
 import HTTPTypes
-import Logging
+public import Logging
 import NIOCore
-import NIOWebSocket
+public import NIOWebSocket
 
 #if canImport(FoundationEssentials)
 import FoundationEssentials

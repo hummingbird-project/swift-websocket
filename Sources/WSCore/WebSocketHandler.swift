@@ -7,9 +7,9 @@
 //
 
 import Logging
-import NIOCore
+public import NIOCore
 import NIOSSL
-import NIOWebSocket
+public import NIOWebSocket
 import ServiceLifecycle
 
 /// WebSocket type

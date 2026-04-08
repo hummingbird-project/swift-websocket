@@ -7,11 +7,11 @@
 //
 
 import HTTPTypes
-import Logging
-import NIOCore
-import NIOPosix
-import NIOSSL
-import NIOTransportServices
+public import Logging
+public import NIOCore
+public import NIOPosix
+public import NIOSSL
+public import NIOTransportServices
 import NIOWebSocket
 import WSCore
 

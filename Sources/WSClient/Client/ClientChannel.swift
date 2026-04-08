@@ -6,8 +6,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-import Logging
-import NIOCore
+public import Logging
+public import NIOCore
 
 /// ClientConnection child channel setup protocol
 @_documentation(visibility: internal)

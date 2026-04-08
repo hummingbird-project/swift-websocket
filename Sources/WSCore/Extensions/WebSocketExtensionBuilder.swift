@@ -5,7 +5,7 @@
 // See LICENSE.txt for license information
 // SPDX-License-Identifier: Apache-2.0
 //
-import HTTPTypes
+public import HTTPTypes
 
 /// Protocol for WebSocket extension builder
 public protocol WebSocketExtensionBuilder: Sendable {
