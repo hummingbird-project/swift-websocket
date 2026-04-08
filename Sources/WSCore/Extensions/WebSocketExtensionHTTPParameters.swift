@@ -6,7 +6,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-import HTTPTypes
+public import HTTPTypes
 
 #if canImport(FoundationEssentials)
 import FoundationEssentials

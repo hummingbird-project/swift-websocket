@@ -6,8 +6,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-import NIOCore
-import NIOWebSocket
+public import NIOCore
+public import NIOWebSocket
 
 /// Outbound websocket writer
 public struct WebSocketOutboundWriter: Sendable {

@@ -6,8 +6,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-import Logging
-import NIOCore
+public import Logging
 
 /// Protocol for WebSocket Data handling functions context parameter
 public protocol WebSocketContext: Sendable {
