@@ -8,7 +8,7 @@
 
 #if canImport(Network)
 import Foundation
-import Network
+public import Network
 import Security
 
 /// Wrapper for NIO transport services TLS options
