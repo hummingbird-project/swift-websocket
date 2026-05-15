@@ -59,10 +59,11 @@ struct WebSocketStateMachineTests {
 
     @Test func testPingLoopNoPong() {
         var stateMachine = WebSocketStateMachine(autoPingSetup: .enabled(timePeriod: .seconds(15)))
-        guard case .sendPing = stateMachine.sendPing() else {
+        guard case .sendPing(let buffer) = stateMachine.sendPing() else {
             Issue.record()
             return
         }
+        stateMachine.markPingSent(bytes: buffer)
         guard case .wait = stateMachine.sendPing() else {
             Issue.record()
             return
@@ -75,6 +76,7 @@ struct WebSocketStateMachineTests {
             Issue.record()
             return
         }
+        stateMachine.markPingSent(bytes: buffer)
         guard case .wait = stateMachine.sendPing() else {
             Issue.record()
             return
@@ -84,8 +86,49 @@ struct WebSocketStateMachineTests {
             Issue.record()
             return
         }
+        #expect(openState.lastPingRequestedTime == nil)
         #expect(openState.lastPingTime == nil)
         guard case .sendPing = stateMachine.sendPing() else {
+            Issue.record()
+            return
+        }
+        stateMachine.markPingSent(bytes: buffer)
+    }
+
+    @Test func testPingTimeout() async throws {
+        let timePeriod: Duration = .milliseconds(20)
+        var stateMachine = WebSocketStateMachine(autoPingSetup: .enabled(timePeriod: timePeriod))
+        guard case .sendPing(let buffer) = stateMachine.sendPing() else {
+            Issue.record()
+            return
+        }
+        stateMachine.markPingSent(bytes: buffer)
+        guard case .wait = stateMachine.sendPing() else {
+            Issue.record()
+            return
+        }
+        try await Task.sleep(for: timePeriod * 2)
+        guard case .closeConnection(_) = stateMachine.sendPing() else {
+            Issue.record()
+            return
+        }
+    }
+
+    @Test func testPingNotSent() async throws {
+        let timePeriod: Duration = .milliseconds(20)
+        var stateMachine = WebSocketStateMachine(autoPingSetup: .enabled(timePeriod: timePeriod))
+        guard case .sendPing(let buffer) = stateMachine.sendPing() else {
+            Issue.record()
+            return
+        }
+        // Don't mark as sent
+        guard case .wait = stateMachine.sendPing() else {
+            Issue.record()
+            return
+        }
+        try await Task.sleep(for: timePeriod * 2)
+        // Check that it waits indefinitely until sent
+        guard case .wait = stateMachine.sendPing() else {
             Issue.record()
             return
         }
@@ -99,6 +142,7 @@ struct WebSocketStateMachineTests {
         while true {
             switch stateMachine.sendPing() {
             case .sendPing(let buffer):
+                stateMachine.markPingSent(bytes: buffer)
                 #expect(buffer.readableBytes == 16)
                 currentBuffer = buffer
                 count += 1

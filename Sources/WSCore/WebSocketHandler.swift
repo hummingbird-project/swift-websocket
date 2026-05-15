@@ -239,6 +239,7 @@ public struct WebSocketCloseFrame: Sendable {
             switch self.stateMachine.sendPing() {
             case .sendPing(let buffer):
                 try await self.write(frame: .init(fin: true, opcode: .ping, data: buffer))
+                self.stateMachine.markPingSent(bytes: buffer)
 
             case .wait(let time):
                 try await Task.sleep(for: time)
