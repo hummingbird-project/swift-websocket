@@ -101,28 +101,48 @@ struct WebSocketStateMachine {
         switch self.state {
         case .open(var state):
             if let lastPingTime = state.lastPingTime {
+                // A ping was sent. Check if we should time out
                 let timeSinceLastPing = .now - lastPingTime
-                // if time is less than timeout value, set wait time to when it would timeout
-                // and re-run loop
                 if timeSinceLastPing < self.pingTimePeriod {
+                    // Set wait time to when it would timeout and re-run loop
                     return .wait(self.pingTimePeriod - timeSinceLastPing)
                 } else {
                     return .closeConnection(.goingAway)
                 }
+            } else if let lastPingRequestedTime = state.lastPingRequestedTime {
+                // We have requested a ping, but it hasn't yet been sent. Wait until it would timeout if it was sent immediately.
+                let timeSinceLastRequestedPing = .now - lastPingRequestedTime
+                return .wait(self.pingTimePeriod - timeSinceLastRequestedPing)
+            } else {
+                // Send a new ping with a random payload
+                let random = (0..<Self.pingDataSize).map { _ in UInt8.random(in: 0...255) }
+                state.pingData.clear()
+                state.pingData.writeBytes(random)
+                state.lastPingRequestedTime = .now
+                self.state = .open(state)
+                return .sendPing(state.pingData)
             }
-            // creating random payload
-            let random = (0..<Self.pingDataSize).map { _ in UInt8.random(in: 0...255) }
-            state.pingData.clear()
-            state.pingData.writeBytes(random)
-            state.lastPingTime = .now
-            self.state = .open(state)
-            return .sendPing(state.pingData)
 
         case .closing:
             return .stop
 
         case .closed:
             return .stop
+        }
+    }
+
+    /// Mark that the ping (identified by the bytes argument) has been successfully sent
+    mutating func markPingSent(bytes: ByteBuffer) {
+        switch self.state {
+        case .open(var state):
+            guard bytes == state.pingData else {
+                // New ping has been sent.
+                return
+            }
+            state.lastPingTime = .now
+            self.state = .open(state)
+        default:
+            break
         }
     }
 
@@ -153,6 +173,7 @@ struct WebSocketStateMachine {
             // ignore pong frames with frame data not the same as the last ping
             guard frameData == state.pingData else { return }
             // clear ping data
+            state.lastPingRequestedTime = nil
             state.lastPingTime = nil
             self.state = .open(state)
 
@@ -168,10 +189,14 @@ struct WebSocketStateMachine {
 extension WebSocketStateMachine {
     struct OpenState {
         var pingData: ByteBuffer
+        // The time at which the ping was requested to be sent
+        var lastPingRequestedTime: ContinuousClock.Instant?
+        // The time at which the ping was sent. This may not match the requested time because the outbound writer may be busy.
         var lastPingTime: ContinuousClock.Instant?
 
         init() {
             self.pingData = ByteBufferAllocator().buffer(capacity: WebSocketStateMachine.pingDataSize)
+            self.lastPingRequestedTime = nil
             self.lastPingTime = nil
         }
     }
