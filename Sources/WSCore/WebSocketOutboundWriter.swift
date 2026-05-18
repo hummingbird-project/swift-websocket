@@ -78,6 +78,7 @@ public struct WebSocketOutboundWriter: Sendable {
     /// - Parameter string: String to write to websocket
     public func writeText(_ string: String) async throws {
         if string.utf8.count > self.maxFrameSize {
+            #if compiler(>=6.2)
             // Use utf8span if available
             if #available(macOS 26, iOS 26, tvOS 26, *) {
                 let span = string.utf8.span
@@ -108,6 +109,19 @@ public struct WebSocketOutboundWriter: Sendable {
                 // write the final frame
                 try await self.handler.write(frame: .init(fin: true, opcode: .continuation, data: buffer))
             }
+            #else
+            var buffer = ByteBuffer(string: string)
+            // write first frame with opcode defining data type
+            let slice = buffer.readSlice(length: self.maxFrameSize)!
+            try await self.handler.write(frame: .init(fin: false, opcode: .text, data: slice))
+            // while we have bytes greater than frame size write continuation frames with fin set to false
+            while buffer.readableBytes > self.maxFrameSize {
+                let slice = buffer.readSlice(length: self.maxFrameSize)!
+                try await self.handler.write(frame: .init(fin: false, opcode: .continuation, data: slice))
+            }
+            // write the final frame
+            try await self.handler.write(frame: .init(fin: true, opcode: .continuation, data: buffer))
+            #endif
         } else {
             let buffer = ByteBuffer(string: string)
             try await self.handler.write(frame: .init(fin: true, opcode: .text, data: buffer))
