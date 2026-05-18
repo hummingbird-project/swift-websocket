@@ -207,6 +207,7 @@ public struct WebSocketOutboundWriter: Sendable {
     }
 }
 
+#if compiler(>=6.2)
 extension ByteBuffer {
     fileprivate init(_uint8Span bytes: Span<UInt8>) {
         var buffer = ByteBufferAllocator().buffer(capacity: bytes.count)
@@ -214,3 +215,4 @@ extension ByteBuffer {
         self = buffer
     }
 }
+#endif
