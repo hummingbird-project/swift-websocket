@@ -24,6 +24,7 @@ public struct WebSocketOutboundWriter: Sendable {
     }
 
     let handler: WebSocketHandler
+    let maxFrameSize: Int
 
     /// Write WebSocket frame
     public func write(_ frame: OutboundFrame) async throws {
@@ -42,6 +43,88 @@ public struct WebSocketOutboundWriter: Sendable {
         case .custom(let frame):
             // send custom WebSocketFrame
             try await self.handler.write(frame: frame)
+        }
+    }
+
+    /// Write buffer to websocket, breaking it up into individual frames if the buffer is too large
+    ///
+    /// If you are certain that the buffer will fit into your websocket frame size then use
+    /// ``WebSocketOutboundWriter.write(_:)`` instead.
+    ///
+    /// - Parameter buffer: Buffer to write to websocket
+    public func writeBuffer(_ buffer: ByteBuffer) async throws {
+        if buffer.readableBytes > self.maxFrameSize {
+            var buffer = buffer
+            // write first frame with opcode defining data type
+            let slice = buffer.readSlice(length: self.maxFrameSize)!
+            try await self.handler.write(frame: .init(fin: false, opcode: .binary, data: slice))
+            // while we have bytes greater than frame size write continuation frames with fin set to false
+            while buffer.readableBytes > self.maxFrameSize {
+                let slice = buffer.readSlice(length: self.maxFrameSize)!
+                try await self.handler.write(frame: .init(fin: false, opcode: .binary, data: slice))
+            }
+            // write the final frame
+            try await self.handler.write(frame: .init(fin: true, opcode: .binary, data: buffer))
+        } else {
+            try await self.handler.write(frame: .init(fin: true, opcode: .binary, data: buffer))
+        }
+    }
+
+    /// Write string to websocket, breaking it up into individual frames if the string is too large
+    ///
+    /// If you are certain that the string will fit into your websocket frame size then use
+    /// ``WebSocketOutboundWriter.write(_:)`` instead.
+    ///
+    /// - Parameter string: String to write to websocket
+    public func writeText(_ string: String) async throws {
+        if string.utf8.count > self.maxFrameSize {
+            #if compiler(>=6.2)
+            // Use utf8span if available
+            if #available(macOS 26, iOS 26, tvOS 26, *) {
+                let span = string.utf8.span
+                var index = 0
+                // write first frame with opcode defining data type
+                let bytes = span.extracting(index..<(index + self.maxFrameSize))
+                try await self.handler.write(frame: .init(fin: false, opcode: .text, data: .init(_uint8Span: bytes)))
+                index += self.maxFrameSize
+                // while we have bytes greater than frame size write continuation frames with fin set to false
+                while span.count - index > self.maxFrameSize {
+                    let bytes = span.extracting(index..<(index + self.maxFrameSize))
+                    try await self.handler.write(frame: .init(fin: false, opcode: .continuation, data: .init(_uint8Span: bytes)))
+                    index += self.maxFrameSize
+                }
+                // write the final frame
+                let endBytes = span.extracting(index..<span.count)
+                try await self.handler.write(frame: .init(fin: true, opcode: .continuation, data: .init(_uint8Span: endBytes)))
+            } else {
+                var buffer = ByteBuffer(string: string)
+                // write first frame with opcode defining data type
+                let slice = buffer.readSlice(length: self.maxFrameSize)!
+                try await self.handler.write(frame: .init(fin: false, opcode: .text, data: slice))
+                // while we have bytes greater than frame size write continuation frames with fin set to false
+                while buffer.readableBytes > self.maxFrameSize {
+                    let slice = buffer.readSlice(length: self.maxFrameSize)!
+                    try await self.handler.write(frame: .init(fin: false, opcode: .continuation, data: slice))
+                }
+                // write the final frame
+                try await self.handler.write(frame: .init(fin: true, opcode: .continuation, data: buffer))
+            }
+            #else
+            var buffer = ByteBuffer(string: string)
+            // write first frame with opcode defining data type
+            let slice = buffer.readSlice(length: self.maxFrameSize)!
+            try await self.handler.write(frame: .init(fin: false, opcode: .text, data: slice))
+            // while we have bytes greater than frame size write continuation frames with fin set to false
+            while buffer.readableBytes > self.maxFrameSize {
+                let slice = buffer.readSlice(length: self.maxFrameSize)!
+                try await self.handler.write(frame: .init(fin: false, opcode: .continuation, data: slice))
+            }
+            // write the final frame
+            try await self.handler.write(frame: .init(fin: true, opcode: .continuation, data: buffer))
+            #endif
+        } else {
+            let buffer = ByteBuffer(string: string)
+            try await self.handler.write(frame: .init(fin: true, opcode: .text, data: buffer))
         }
     }
 
@@ -123,3 +206,13 @@ public struct WebSocketOutboundWriter: Sendable {
         return value
     }
 }
+
+#if compiler(>=6.2)
+extension ByteBuffer {
+    fileprivate init(_uint8Span bytes: Span<UInt8>) {
+        var buffer = ByteBufferAllocator().buffer(capacity: bytes.count)
+        buffer.writeBytes(bytes.bytes)
+        self = buffer
+    }
+}
+#endif

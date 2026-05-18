@@ -255,7 +255,8 @@ struct WebSocketClientChannel: ClientConnectionChannel {
                     autoPing: self.configuration.autoPing,
                     closeTimeout: self.configuration.closeTimeout,
                     validateUTF8: self.configuration.validateUTF8,
-                    ignoreUncleanSSLShutdownErrors: self.configuration.ignoreUncleanSSLShutdownErrors
+                    ignoreUncleanSSLShutdownErrors: self.configuration.ignoreUncleanSSLShutdownErrors,
+                    maxFrameSize: self.configuration.maxFrameSize
                 ),
                 asyncChannel: webSocketChannel,
                 context: WebSocketClient.Context(logger: logger),
