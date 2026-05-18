@@ -49,7 +49,7 @@ public struct WebSocketOutboundWriter: Sendable {
     /// Write buffer to websocket, breaking it up into individual frames if the buffer is too large
     ///
     /// If you are certain that the buffer will fit into your websocket frame size then use
-    /// ``WebSocketOutboundWriter.write(_:)`` instead.
+    /// ``write(_:)`` instead.
     ///
     /// - Parameter buffer: Buffer to write to websocket
     public func writeBuffer(_ buffer: ByteBuffer) async throws {
@@ -73,7 +73,7 @@ public struct WebSocketOutboundWriter: Sendable {
     /// Write string to websocket, breaking it up into individual frames if the string is too large
     ///
     /// If you are certain that the string will fit into your websocket frame size then use
-    /// ``WebSocketOutboundWriter.write(_:)`` instead.
+    /// ``write(_:)`` instead.
     ///
     /// - Parameter string: String to write to websocket
     public func writeText(_ string: String) async throws {
