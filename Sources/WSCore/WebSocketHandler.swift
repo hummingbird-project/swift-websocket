@@ -69,13 +69,15 @@ public struct WebSocketCloseFrame: Sendable {
         let reservedBits: WebSocketFrame.ReservedBits
         let closeTimeout: Duration
         let ignoreUncleanSSLShutdownErrors: Bool
+        let maxFrameSize: Int
 
         @_spi(WSInternal) public init(
             extensions: [any WebSocketExtension],
             autoPing: AutoPingSetup,
             closeTimeout: Duration = .seconds(15),
             validateUTF8: Bool,
-            ignoreUncleanSSLShutdownErrors: Bool = false
+            ignoreUncleanSSLShutdownErrors: Bool = false,
+            maxFrameSize: Int = 1 << 14
         ) {
             self.extensions = extensions
             self.autoPing = autoPing
@@ -86,6 +88,7 @@ public struct WebSocketCloseFrame: Sendable {
             self.reservedBits = extensions.reduce(.init()) { partialResult, `extension` in
                 partialResult.union(`extension`.reservedBits)
             }
+            self.maxFrameSize = maxFrameSize
         }
     }
 
@@ -170,7 +173,7 @@ public struct WebSocketCloseFrame: Sendable {
                         try await self.runAutoPingLoop()
                     }
                 }
-                let webSocketOutbound = WebSocketOutboundWriter(handler: self)
+                let webSocketOutbound = WebSocketOutboundWriter(handler: self, maxFrameSize: self.configuration.maxFrameSize)
                 var inboundIterator = inbound.makeAsyncIterator()
                 let webSocketInbound = WebSocketInboundStream(
                     iterator: inboundIterator,
