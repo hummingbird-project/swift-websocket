@@ -13,7 +13,7 @@ public import NIOPosix
 public import NIOSSL
 public import NIOTransportServices
 import NIOWebSocket
-@_spi(WSInternal) import WSCore
+import WSCore
 
 /// WebSocket client
 ///
@@ -211,16 +211,7 @@ public struct WebSocketClient {
             eventLoopGroup: self.eventLoopGroup,
             logger: self.logger
         )
-        do {
-            return try await client.run()
-        } catch WebSocketHandler.InternalError.close(let code) {
-            switch code {
-            case .messageTooLarge:
-                throw WebSocketClientError.serverSentMessageTooLarge
-            default:
-                throw WebSocketClientError.serverProtocolError
-            }
-        }
+        return try await client.run()
     }
 }
 
