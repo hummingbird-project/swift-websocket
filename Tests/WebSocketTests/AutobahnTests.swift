@@ -73,25 +73,28 @@ struct AutobahnTests {
                 logger.info("\(info.id): \(info.description)")
 
                 // run case
-                try await WebSocketClient.connect(
-                    url: "ws://\(self.autobahnServer):9001/runCase?case=\(index)&agent=swift-websocket",
-                    configuration: .init(
-                        maxFrameSize: 16_777_216,
-                        extensions: extensions,
-                        validateUTF8: true
-                    ),
-                    logger: logger
-                ) { inbound, outbound, _ in
-                    for try await msg in inbound.messages(maxSize: .max) {
-                        switch msg {
-                        case .binary(let buffer):
-                            try await outbound.write(.binary(buffer))
-                        case .text(let string):
-                            try await outbound.write(.text(string))
+                do {
+                    try await WebSocketClient.connect(
+                        url: "ws://\(self.autobahnServer):9001/runCase?case=\(index)&agent=swift-websocket",
+                        configuration: .init(
+                            maxFrameSize: 16_777_216,
+                            extensions: extensions,
+                            validateUTF8: true
+                        ),
+                        logger: logger
+                    ) { inbound, outbound, _ in
+                        for try await msg in inbound.messages(maxSize: .max) {
+                            switch msg {
+                            case .binary(let buffer):
+                                try await outbound.write(.binary(buffer))
+                            case .text(let string):
+                                try await outbound.write(.text(string))
+                            }
                         }
                     }
+                } catch {
+                    print("\(error)")
                 }
-
                 // get case status
                 let status = try await getValue("getCaseStatus?case=\(index)&agent=swift-websocket", as: CaseStatus.self)
                 #expect(status.behavior == "OK" || status.behavior == "INFORMATIONAL" || status.behavior == "NON-STRICT")

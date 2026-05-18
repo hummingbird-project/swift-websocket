@@ -52,7 +52,7 @@ public struct WebSocketCloseFrame: Sendable {
 /// SPI WSInternal is used to make the WebSocket Handler available to both client and server
 /// implementations
 @_spi(WSInternal) public actor WebSocketHandler {
-    enum InternalError: Error {
+    package enum InternalError: Error {
         case close(WebSocketErrorCode)
     }
 
@@ -184,6 +184,7 @@ public struct WebSocketCloseFrame: Sendable {
                     closeCode = .normalClosure
                 } catch InternalError.close(let code) {
                     closeCode = code
+                    clientError = InternalError.close(code)
                 } catch {
                     clientError = error
                     closeCode = .unexpectedServerError
