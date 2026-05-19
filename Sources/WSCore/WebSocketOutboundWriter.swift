@@ -61,10 +61,10 @@ public struct WebSocketOutboundWriter: Sendable {
             // while we have bytes greater than frame size write continuation frames with fin set to false
             while buffer.readableBytes > self.maxFrameSize {
                 let slice = buffer.readSlice(length: self.maxFrameSize)!
-                try await self.handler.write(frame: .init(fin: false, opcode: .binary, data: slice))
+                try await self.handler.write(frame: .init(fin: false, opcode: .continuation, data: slice))
             }
             // write the final frame
-            try await self.handler.write(frame: .init(fin: true, opcode: .binary, data: buffer))
+            try await self.handler.write(frame: .init(fin: true, opcode: .continuation, data: buffer))
         } else {
             try await self.handler.write(frame: .init(fin: true, opcode: .binary, data: buffer))
         }
