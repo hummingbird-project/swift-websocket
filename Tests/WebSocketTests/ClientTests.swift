@@ -19,7 +19,7 @@ import Testing
 
 let magicWebSocketGUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
-struct WebSocketClientTests {
+struct WebSocketClientHTTPTests {
     /// Read HTTP headers from request. Assumes request has no body
     func readHTTPRequest(from buffer: ByteBuffer) -> (String, HTTPFields) {
         let text = String(buffer: buffer)
