@@ -15,6 +15,10 @@ import WSClient
 @_spi(WSInternal) import WSCore
 
 struct WebSocketClientTests {
+    struct CloseError: Error {
+        let errorCode: WebSocketErrorCode
+        let reason: String?
+    }
     func createRandomBuffer(size: Int) -> ByteBuffer {
         // create buffer
         var data = [UInt8](repeating: 0, count: size)
@@ -45,18 +49,19 @@ struct WebSocketClientTests {
                 }
             }
             group.addTask {
+                let closeFrame: (WebSocketErrorCode, String?)
                 do {
                     try await server(channel)
-                    try await channel.writeCloseFrame(code: .normalClosure)
-                    let outbound = try await channel.waitForOutboundWrite(as: WebSocketFrame.self)
-                    #expect(outbound.opcode == .connectionClose)
-                    try await channel.close()
+                    closeFrame = (.normalClosure, nil)
+                } catch let error as CloseError {
+                    closeFrame = (error.errorCode, error.reason)
                 } catch {
-                    try await channel.writeCloseFrame(code: .unexpectedServerError)
-                    let outbound = try await channel.waitForOutboundWrite(as: WebSocketFrame.self)
-                    #expect(outbound.opcode == .connectionClose)
-                    try await channel.close()
+                    closeFrame = (.unexpectedServerError, nil)
                 }
+                try await channel.writeCloseFrame(code: closeFrame.0, reason: closeFrame.1)
+                let outbound = try await channel.waitForOutboundWrite(as: WebSocketFrame.self)
+                #expect(outbound.opcode == .connectionClose)
+                try await channel.close()
                 return .server
             }
             while let result = try await group.next() {
@@ -175,14 +180,39 @@ struct WebSocketClientTests {
         logger.logLevel = .trace
 
         let (stream, cont) = AsyncStream.makeStream(of: Void.self)
-        let closeFrame = try await withTestWebSocketServer(configuration: .init(maxFrameSize: 1024), logger: logger) { inbound, outbound, _ in
+        let closeFrame = try await withTestWebSocketServer(logger: logger) { inbound, outbound, _ in
             cont.finish()
             for try await _ in inbound {}
         } server: { channel in
             _ = await stream.first { _ in true }
-            throw CancellationError()
+            throw CloseError(errorCode: .unacceptableData, reason: "Don't like it")
         }
-        #expect(closeFrame?.closeCode == .unexpectedServerError)
+        #expect(closeFrame?.closeCode == .unacceptableData)
+        #expect(closeFrame?.reason == "Don't like it")
+    }
+
+    @Test
+    func autoPing() async throws {
+        var logger = Logger(label: "autoPing")
+        logger.logLevel = .trace
+
+        try await withTestWebSocketServer(
+            configuration: .init(autoPing: .enabled(timePeriod: .milliseconds(100))),
+            logger: logger
+        ) { inbound, outbound, _ in
+            for try await _ in inbound {}
+        } server: { channel in
+            // respond to first ping to see if we receive another, don't respond to second ping
+            var outbound = try await channel.waitForOutboundWrite(as: WebSocketFrame.self)
+            #expect(outbound.opcode == .ping)
+            #expect(outbound.fin == true)
+            try await channel.writeInbound(WebSocketFrame(fin: true, opcode: .pong, data: outbound.data))
+            outbound = try await channel.waitForOutboundWrite(as: WebSocketFrame.self)
+            #expect(outbound.opcode == .ping)
+            // If we don't cancel before 60 seconds has passed record issue
+            try await Task.sleep(for: .seconds(60))
+            Issue.record("Should have cancelled the server as the client ping timed out")
+        }
     }
 }
 
