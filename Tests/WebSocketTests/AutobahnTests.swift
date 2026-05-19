@@ -92,8 +92,8 @@ struct AutobahnTests {
                             }
                         }
                     }
-                } catch {
-                    print("\(error)")
+                } catch let error as WebSocketClientError where error == .serverProtocolError {
+                    logger.info("\(error)")
                 }
                 // get case status
                 let status = try await getValue("getCaseStatus?case=\(index)&agent=swift-websocket", as: CaseStatus.self)

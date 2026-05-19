@@ -217,6 +217,8 @@ public struct WebSocketClient {
             switch code {
             case .messageTooLarge:
                 throw WebSocketClientError.serverSentMessageTooLarge
+            case .dataInconsistentWithMessage:
+                throw WebSocketClientError.serverSentDataInconsistentWithMessage
             default:
                 throw WebSocketClientError.serverProtocolError
             }
