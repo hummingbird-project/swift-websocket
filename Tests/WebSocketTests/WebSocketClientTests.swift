@@ -12,7 +12,8 @@ import NIOEmbedded
 import NIOWebSocket
 import Testing
 import WSClient
-@_spi(WSInternal) import WSCore
+
+@testable import WSCore
 
 struct WebSocketClientTests {
     struct CloseError: Error {
@@ -61,7 +62,8 @@ struct WebSocketClientTests {
                 try await channel.writeCloseFrame(code: closeFrame.0, reason: closeFrame.1)
                 let outbound = try await channel.waitForOutboundWrite(as: WebSocketFrame.self)
                 #expect(outbound.opcode == .connectionClose)
-                try await channel.close()
+                // ignore errors from close as it appears NIOAsyncTestingChannel doesn't support half closure
+                try? await channel.close(mode: .input)
                 return .server
             }
             while let result = try await group.next() {
@@ -192,12 +194,34 @@ struct WebSocketClientTests {
     }
 
     @Test
+    func ping() async throws {
+        let logger = {
+            var logger = Logger(label: "ping")
+            logger.logLevel = .trace
+            return logger
+        }()
+
+        try await withTestWebSocketServer(logger: logger) { inbound, outbound, context in
+            context.logger.info("START CLIENT")
+            for try await _ in inbound {}
+        } server: { channel in
+            logger.info("START SERVER")
+            let pingBuffer = ByteBuffer(bytes: (0..<16).map { _ in UInt8.random(in: 0...255) })
+            try await channel.writeInbound(WebSocketFrame(fin: true, opcode: .ping, data: pingBuffer))
+            let outbound = try await channel.waitForOutboundWrite(as: WebSocketFrame.self)
+            #expect(outbound.opcode == .pong)
+            #expect(outbound.fin == true)
+            #expect(outbound.data == pingBuffer)
+        }
+    }
+
+    @Test
     func autoPing() async throws {
         var logger = Logger(label: "autoPing")
         logger.logLevel = .trace
 
         try await withTestWebSocketServer(
-            configuration: .init(autoPing: .enabled(timePeriod: .milliseconds(100))),
+            configuration: .init(autoPing: .enabled(timePeriod: .milliseconds(200))),
             logger: logger
         ) { inbound, outbound, _ in
             for try await _ in inbound {}
