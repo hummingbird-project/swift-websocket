@@ -52,7 +52,7 @@ public struct WebSocketCloseFrame: Sendable {
 /// SPI WSInternal is used to make the WebSocket Handler available to both client and server
 /// implementations
 @_spi(WSInternal) public actor WebSocketHandler {
-    enum InternalError: Error {
+    package enum InternalError: Error {
         case close(WebSocketErrorCode)
     }
 
@@ -187,6 +187,7 @@ public struct WebSocketCloseFrame: Sendable {
                     closeCode = .normalClosure
                 } catch InternalError.close(let code) {
                     closeCode = code
+                    clientError = InternalError.close(code)
                 } catch {
                     clientError = error
                     closeCode = .unexpectedServerError
@@ -275,9 +276,8 @@ public struct WebSocketCloseFrame: Sendable {
         if self.type == .client {
             frame.maskKey = self.makeMaskKey()
         }
+        self.logger.trace("Sending \(frame.traceDescription)")
         try await self.outbound.write(frame)
-
-        self.logger.trace("Sent \(frame.traceDescription)")
     }
 
     func finish() {
