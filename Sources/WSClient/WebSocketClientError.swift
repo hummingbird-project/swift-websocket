@@ -11,6 +11,9 @@ public struct WebSocketClientError: Swift.Error, Equatable {
     private enum _Internal: Equatable {
         case invalidURL
         case webSocketUpgradeFailed
+        case serverProtocolError
+        case serverSentMessageTooLarge
+        case serverSentDataInconsistentWithMessage
         case proxyHandshakeFailed
         case proxyHandshakeInvalidResponse
         case proxyHandshakeTimeout
@@ -25,6 +28,12 @@ public struct WebSocketClientError: Swift.Error, Equatable {
     public static var invalidURL: Self { .init(.invalidURL) }
     /// WebSocket upgrade failed.
     public static var webSocketUpgradeFailed: Self { .init(.webSocketUpgradeFailed) }
+    /// Server protocol error.
+    public static var serverProtocolError: Self { .init(.serverProtocolError) }
+    /// Server sent data inconsistent with frame type eg non-utf8 text
+    public static var serverSentDataInconsistentWithMessage: Self { .init(.serverSentDataInconsistentWithMessage) }
+    /// Server sent a message that was too large
+    public static var serverSentMessageTooLarge: Self { .init(.serverSentMessageTooLarge) }
     /// Proxy connection failed.
     public static var proxyHandshakeFailed: Self { .init(.proxyHandshakeFailed) }
     /// Proxy connection return invalid response.
@@ -41,6 +50,9 @@ extension WebSocketClientError: CustomStringConvertible {
         case .proxyHandshakeFailed: "Proxy handshake failed"
         case .proxyHandshakeInvalidResponse: "Proxy return an invalid response during the handshake"
         case .proxyHandshakeTimeout: "Proxy handshake timed out"
+        case .serverProtocolError: "Server protocol error"
+        case .serverSentMessageTooLarge: "Server sent a message that was too large"
+        case .serverSentDataInconsistentWithMessage: "Server sent data inconsistent with frame type eg non-utf8 text"
         }
     }
 }
