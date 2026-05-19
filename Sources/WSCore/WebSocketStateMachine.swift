@@ -111,9 +111,8 @@ struct WebSocketStateMachine {
                 }
             }
             // creating random payload
-            let random = (0..<Self.pingDataSize).map { _ in UInt8.random(in: 0...255) }
             state.pingData.clear()
-            state.pingData.writeBytes(random)
+            state.pingData.writeBytes(RandomBytes(length: Self.pingDataSize))
             state.lastPingTime = .now
             self.state = .open(state)
             return .sendPing(state.pingData)
@@ -181,4 +180,24 @@ extension WebSocketStateMachine {
         case closing
         case closed(WebSocketCloseFrame?)
     }
+}
+
+/// Sequence of random bytes
+struct RandomBytes: Sequence {
+    typealias Element = UInt8
+
+    struct Iterator: IteratorProtocol {
+        var count: Int
+
+        mutating func next() -> UInt8? {
+            guard count > 0 else { return nil }
+            self.count -= 1
+            return UInt8.random(in: 0...255)
+        }
+    }
+
+    func makeIterator() -> Iterator {
+        .init(count: self.length)
+    }
+    let length: Int
 }

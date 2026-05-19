@@ -273,9 +273,8 @@ public struct WebSocketCloseFrame: Sendable {
         if self.type == .client {
             frame.maskKey = self.makeMaskKey()
         }
+        self.logger.trace("Sending \(frame.traceDescription)")
         try await self.outbound.write(frame)
-
-        self.logger.trace("Sent \(frame.traceDescription)")
     }
 
     func finish() {
