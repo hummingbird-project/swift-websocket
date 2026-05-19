@@ -182,6 +182,7 @@ extension WebSocketStateMachine {
     }
 }
 
+/// Sequence of random bytes
 struct RandomBytes: Sequence {
     typealias Element = UInt8
 
