@@ -11,9 +11,12 @@ public import Logging
 public import NIOCore
 public import NIOPosix
 public import NIOSSL
-public import NIOTransportServices
 import NIOWebSocket
 @_spi(WSInternal) import WSCore
+
+#if canImport(Network)
+public import NIOTransportServices
+#endif
 
 /// WebSocket client
 ///

@@ -20,14 +20,6 @@ struct WebSocketClientTests {
         let errorCode: WebSocketErrorCode
         let reason: String?
     }
-    func createRandomBuffer(size: Int) -> ByteBuffer {
-        // create buffer
-        var data = [UInt8](repeating: 0, count: size)
-        for i in 0..<size {
-            data[i] = UInt8.random(in: 0...255)
-        }
-        return ByteBuffer(bytes: data)
-    }
 
     @discardableResult func withTestWebSocketServer(
         configuration: WebSocketClientConfiguration = .init(),
@@ -152,11 +144,67 @@ struct WebSocketClientTests {
     }
 
     @Test
+    func writeTextMessage() async throws {
+        var logger = Logger(label: "textMessageWriter")
+        logger.logLevel = .trace
+
+        let textBuffer = String((0..<3000).map { _ in "abcdefghijkl".randomElement()! })
+        try await withTestWebSocketServer(configuration: .init(maxFrameSize: 1024), logger: logger) { inbound, outbound, _ in
+            try await outbound.writeTextMessage(textBuffer)
+        } server: { channel in
+            var string = ""
+            var outbound = try await channel.waitForOutboundWrite(as: WebSocketFrame.self)
+            #expect(outbound.opcode == .text)
+            #expect(outbound.fin == false)
+            string += String(buffer: outbound.data)
+            outbound = try await channel.waitForOutboundWrite(as: WebSocketFrame.self)
+            #expect(outbound.opcode == .continuation)
+            #expect(outbound.fin == false)
+            string += String(buffer: outbound.data)
+            outbound = try await channel.waitForOutboundWrite(as: WebSocketFrame.self)
+            #expect(outbound.opcode == .continuation)
+            #expect(outbound.fin == true)
+            string += String(buffer: outbound.data)
+            #expect(string == textBuffer)
+        }
+    }
+
+    @Test
+    func writeBinaryMessage() async throws {
+        var logger = Logger(label: "writeBinaryMessage")
+        logger.logLevel = .trace
+
+        let buffer = ByteBuffer(bytes: RandomBytes(length: 3500))
+        try await withTestWebSocketServer(configuration: .init(maxFrameSize: 1024), logger: logger) { inbound, outbound, _ in
+            try await outbound.writeBinaryMessage(buffer)
+        } server: { channel in
+            var buffer2 = ByteBuffer()
+            var outbound = try await channel.waitForOutboundWrite(as: WebSocketFrame.self)
+            #expect(outbound.opcode == .binary)
+            #expect(outbound.fin == false)
+            buffer2.writeImmutableBuffer(outbound.data)
+            outbound = try await channel.waitForOutboundWrite(as: WebSocketFrame.self)
+            #expect(outbound.opcode == .continuation)
+            #expect(outbound.fin == false)
+            buffer2.writeImmutableBuffer(outbound.data)
+            outbound = try await channel.waitForOutboundWrite(as: WebSocketFrame.self)
+            #expect(outbound.opcode == .continuation)
+            #expect(outbound.fin == false)
+            buffer2.writeImmutableBuffer(outbound.data)
+            outbound = try await channel.waitForOutboundWrite(as: WebSocketFrame.self)
+            #expect(outbound.opcode == .continuation)
+            #expect(outbound.fin == true)
+            buffer2.writeImmutableBuffer(outbound.data)
+            #expect(buffer2 == buffer)
+        }
+    }
+
+    @Test
     func binaryMessageWriter() async throws {
         var logger = Logger(label: "binaryMessageWriter")
         logger.logLevel = .trace
 
-        let buffer = createRandomBuffer(size: 3072)
+        let buffer = ByteBuffer(bytes: RandomBytes(length: 3072))
         try await withTestWebSocketServer(logger: logger) { inbound, outbound, _ in
             try await outbound.withBinaryMessageWriter { writer in
                 var buffer = buffer
@@ -239,6 +287,69 @@ struct WebSocketClientTests {
             // If we don't cancel before 60 seconds has passed record issue
             try await Task.sleep(for: .seconds(60))
             Issue.record("Should have cancelled the server as the client ping timed out")
+        }
+    }
+
+    @Test
+    func serverMessageTooLargeError() async throws {
+        var logger = Logger(label: "messageTooLarge")
+        logger.logLevel = .trace
+
+        await #expect(throws: WebSocketClientError.serverSentMessageTooLarge) {
+            try await withTestWebSocketServer(
+                configuration: .init(maxFrameSize: 1024),
+                logger: logger
+            ) { inbound, outbound, _ in
+                for try await _ in inbound.messages(maxSize: 1500) {}
+            } server: { channel in
+                try await channel.writeInbound(
+                    WebSocketFrame(fin: false, opcode: .binary, data: .init(bytes: RandomBytes(length: 1024)))
+                )
+                try await channel.writeInbound(
+                    WebSocketFrame(fin: true, opcode: .continuation, data: .init(bytes: RandomBytes(length: 1024)))
+                )
+            }
+        }
+    }
+
+    @Test
+    func serverProtocolError() async throws {
+        var logger = Logger(label: "messageTooLarge")
+        logger.logLevel = .trace
+
+        await #expect(throws: WebSocketClientError.serverProtocolError) {
+            try await withTestWebSocketServer(
+                configuration: .init(maxFrameSize: 1024),
+                logger: logger
+            ) { inbound, outbound, _ in
+                for try await _ in inbound.messages(maxSize: 1500) {}
+            } server: { channel in
+                try await channel.writeInbound(
+                    WebSocketFrame(fin: false, opcode: .binary, data: .init(bytes: RandomBytes(length: 1024)))
+                )
+                try await channel.writeInbound(
+                    WebSocketFrame(fin: true, opcode: .binary, data: .init(bytes: RandomBytes(length: 1024)))
+                )
+            }
+        }
+    }
+
+    @Test
+    func serverInconsistentDataError() async throws {
+        var logger = Logger(label: "messageTooLarge")
+        logger.logLevel = .trace
+
+        await #expect(throws: WebSocketClientError.serverSentDataInconsistentWithMessage) {
+            try await withTestWebSocketServer(
+                configuration: .init(validateUTF8: true),
+                logger: logger
+            ) { inbound, outbound, _ in
+                for try await _ in inbound.messages(maxSize: 1024) {}
+            } server: { channel in
+                try await channel.writeInbound(
+                    WebSocketFrame(fin: true, opcode: .text, data: .init(repeating: 0xff, count: 16))
+                )
+            }
         }
     }
 }

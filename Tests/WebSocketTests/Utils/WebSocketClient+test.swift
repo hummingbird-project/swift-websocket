@@ -29,18 +29,30 @@ extension WebSocketClient {
             }
             .get()
 
-        return try await WebSocketHandler.handle(
-            type: .client,
-            configuration: .init(
-                extensions: [],
-                autoPing: configuration.autoPing,
-                closeTimeout: configuration.closeTimeout,
-                validateUTF8: configuration.validateUTF8,
-                ignoreUncleanSSLShutdownErrors: configuration.ignoreUncleanSSLShutdownErrors
-            ),
-            asyncChannel: nioAsyncChannel,
-            context: WebSocketClient.Context(logger: logger),
-            handler: handler
-        )
+        do {
+            return try await WebSocketHandler.handle(
+                type: .client,
+                configuration: .init(
+                    extensions: [],
+                    autoPing: configuration.autoPing,
+                    closeTimeout: configuration.closeTimeout,
+                    validateUTF8: configuration.validateUTF8,
+                    ignoreUncleanSSLShutdownErrors: configuration.ignoreUncleanSSLShutdownErrors,
+                    maxFrameSize: configuration.maxFrameSize
+                ),
+                asyncChannel: nioAsyncChannel,
+                context: WebSocketClient.Context(logger: logger),
+                handler: handler
+            )
+        } catch WebSocketHandler.InternalError.close(let code) {
+            switch code {
+            case .messageTooLarge:
+                throw WebSocketClientError.serverSentMessageTooLarge
+            case .dataInconsistentWithMessage:
+                throw WebSocketClientError.serverSentDataInconsistentWithMessage
+            default:
+                throw WebSocketClientError.serverProtocolError
+            }
+        }
     }
 }
