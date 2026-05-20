@@ -150,6 +150,31 @@ struct WebSocketClientTests {
             #expect(outbound.data == .init(string: " world!"))
         }
     }
+    @Test
+    func writeTextMessage() async throws {
+        var logger = Logger(label: "textMessageWriter")
+        logger.logLevel = .trace
+
+        let textBuffer = String((0..<3000).map { _ in "abcdefghijkl".randomElement()! })
+        try await withTestWebSocketServer(configuration: .init(maxFrameSize: 1024), logger: logger) { inbound, outbound, _ in
+            try await outbound.writeTextMessage(textBuffer)
+        } server: { channel in
+            var string = ""
+            var outbound = try await channel.waitForOutboundWrite(as: WebSocketFrame.self)
+            #expect(outbound.opcode == .text)
+            #expect(outbound.fin == false)
+            string += String(buffer: outbound.data)
+            outbound = try await channel.waitForOutboundWrite(as: WebSocketFrame.self)
+            #expect(outbound.opcode == .continuation)
+            #expect(outbound.fin == false)
+            string += String(buffer: outbound.data)
+            outbound = try await channel.waitForOutboundWrite(as: WebSocketFrame.self)
+            #expect(outbound.opcode == .continuation)
+            #expect(outbound.fin == true)
+            string += String(buffer: outbound.data)
+            #expect(string == textBuffer)
+        }
+    }
 
     @Test
     func binaryMessageWriter() async throws {

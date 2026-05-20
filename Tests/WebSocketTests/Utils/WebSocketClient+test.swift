@@ -36,7 +36,8 @@ extension WebSocketClient {
                 autoPing: configuration.autoPing,
                 closeTimeout: configuration.closeTimeout,
                 validateUTF8: configuration.validateUTF8,
-                ignoreUncleanSSLShutdownErrors: configuration.ignoreUncleanSSLShutdownErrors
+                ignoreUncleanSSLShutdownErrors: configuration.ignoreUncleanSSLShutdownErrors,
+                maxFrameSize: configuration.maxFrameSize
             ),
             asyncChannel: nioAsyncChannel,
             context: WebSocketClient.Context(logger: logger),
