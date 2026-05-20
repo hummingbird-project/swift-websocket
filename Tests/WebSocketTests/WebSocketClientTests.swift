@@ -40,16 +40,22 @@ struct WebSocketClientTests {
             case server
         }
         let channel = NIOAsyncTestingChannel()
+        let (stream, cont) = AsyncStream.makeStream(of: Void.self)
+
         return try await withThrowingTaskGroup(of: TestResult.self) { group in
             group.addTask {
                 do {
-                    let result = try await WebSocketClient.test(channel: channel, configuration: configuration, logger: logger, handler: handler)
+                    let result = try await WebSocketClient.test(channel: channel, configuration: configuration, logger: logger) {
+                        cont.yield()
+                        try await handler($0, $1, $2)
+                    }
                     return .client(.success(result))
                 } catch {
                     return .client(.failure(error))
                 }
             }
             group.addTask {
+                await stream.first { _ in true }
                 let closeFrame: (WebSocketErrorCode, String?)
                 do {
                     try await server(channel)
@@ -181,12 +187,9 @@ struct WebSocketClientTests {
         var logger = Logger(label: "serverClosedConnection")
         logger.logLevel = .trace
 
-        let (stream, cont) = AsyncStream.makeStream(of: Void.self)
         let closeFrame = try await withTestWebSocketServer(logger: logger) { inbound, outbound, _ in
-            cont.finish()
             for try await _ in inbound {}
         } server: { channel in
-            _ = await stream.first { _ in true }
             throw CloseError(errorCode: .unacceptableData, reason: "Don't like it")
         }
         #expect(closeFrame?.closeCode == .unacceptableData)
