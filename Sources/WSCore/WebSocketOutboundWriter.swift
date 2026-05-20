@@ -52,7 +52,7 @@ public struct WebSocketOutboundWriter: Sendable {
     /// ``write(_:)`` instead.
     ///
     /// - Parameter buffer: Buffer to write to websocket
-    public func writeBufferMessage(_ buffer: ByteBuffer) async throws {
+    public func writeBinaryMessage(_ buffer: ByteBuffer) async throws {
         if buffer.readableBytes > self.maxFrameSize {
             var buffer = buffer
             // write first frame with opcode defining data type

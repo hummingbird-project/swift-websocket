@@ -18,7 +18,7 @@ struct WebSocketFrameSequence {
     init(frame: WebSocketDataFrame) {
         assert(frame.opcode != .continuation, "Cannot create a WebSocketFrameSequence starting with a continuation")
         self.frames = [frame]
-        self.size = 0
+        self.size = frame.data.readableBytes
     }
 
     mutating func append(_ frame: WebSocketDataFrame) {
