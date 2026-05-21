@@ -298,7 +298,7 @@ struct PerMessageDeflateExtension: WebSocketExtension {
 extension WebSocketExtensionFactory {
     ///  permessage-deflate websocket extension
     /// - Parameters:
-    ///   - maxWindow: Max window to be used for decompression and compression
+    ///   - maxWindow: Max window size to be used for decompression and compression in bits, value should be between 8 and 15
     ///   - noContextTakeover: Should we reset window on every message
     ///   - maxDecompressedFrameSize: Maximum size for a decompressed frame
     ///   - minFrameSizeToCompress: Minimum size of a frame before compression is applied
@@ -324,9 +324,9 @@ extension WebSocketExtensionFactory {
 
     ///  permessage-deflate websocket extension
     /// - Parameters:
-    ///   - clientMaxWindow: Max window to be used for client compression
+    ///   - clientMaxWindow: Max window size to be used for client compression in bits, value should be between 8 and 15
     ///   - clientNoContextTakeover: Should client reset window on every message
-    ///   - serverMaxWindow: Max window to be used for server compression
+    ///   - serverMaxWindow: Max window size to be used for server compression in bits, value should be between 8 and 15
     ///   - serverNoContextTakeover: Should server reset window on every message
     ///   - compressionLevel: Zlib compression level. Value between 0 and 9 where 1 gives best speed, 9 gives
     ///         give best compression and 0 gives no compression.

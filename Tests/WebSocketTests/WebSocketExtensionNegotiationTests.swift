@@ -28,6 +28,22 @@ struct WebSocketExtensionNegotiationTests {
         )
     }
 
+    @Test(
+        arguments: [
+            (
+                "permessage-deflate;client_max_window_bits=12;client_no_context_takeover",
+                PerMessageDeflateExtensionBuilder(clientMaxWindow: 12, clientNoContextTakeover: true)
+            ),
+            (
+                "permessage-deflate;server_max_window_bits=8;server_no_context_takeover",
+                PerMessageDeflateExtensionBuilder(serverMaxWindow: 8, serverNoContextTakeover: true)
+            ),
+        ]
+    )
+    func testDeflateClientRequest(result: String, builder: PerMessageDeflateExtensionBuilder) {
+        #expect(builder.clientRequestHeader() == result)
+    }
+
     @Test func testDeflateServerResponse() {
         let requestHeaders: [WebSocketExtensionHTTPParameters] = [
             .init("permessage-deflate", parameters: ["client_max_window_bits": .value("10")])
