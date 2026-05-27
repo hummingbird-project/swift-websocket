@@ -212,12 +212,8 @@ public struct WebSocketCloseFrame: Sendable {
                             }
                         } catch {
                             switch self.stateMachine.state {
-                            case .closed:
-                                if self.configuration.ignoreUncleanSSLShutdownErrors == false {
-                                    throw error
-                                } else {
-                                    return
-                                }
+                            case .closed where self.configuration.ignoreUncleanSSLShutdownErrors:
+                                return
                             default:
                                 throw error
                             }
