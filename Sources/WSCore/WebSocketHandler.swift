@@ -8,7 +8,6 @@
 
 import Logging
 public import NIOCore
-import NIOSSL
 public import NIOWebSocket
 import ServiceLifecycle
 
@@ -211,8 +210,11 @@ public struct WebSocketCloseFrame: Sendable {
                                     }
                                 }
                             }
-                        } catch let error as NIOSSLError where error == .uncleanShutdown {
-                            if self.configuration.ignoreUncleanSSLShutdownErrors == false {
+                        } catch {
+                            switch self.stateMachine.state {
+                            case .closed where self.configuration.ignoreUncleanSSLShutdownErrors:
+                                return
+                            default:
                                 throw error
                             }
                         }
